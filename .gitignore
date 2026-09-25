@@ -1,0 +1,70 @@
+# --- Python / environments ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# --- Secrets / local config ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Test / tool caches ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.claude/settings.local.json
+
+# --- Local app data (default lives outside the repo in ~/.ai-photo-album,
+#     but never commit it if APP_DATA_DIR points inside the project) ---
+data/
+thumbnails/
+previews/
+exports/
+cache/
+logs/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# --- Photos and datasets: personal images must never be committed.
+#     Tests generate synthetic images at runtime (tests/fixtures.py). ---
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.heif
+*.webp
+*.tif
+*.tiff
+*.dng
+*.raw
+*.cr2
+*.nef
+*.arw
+*.mov
+*.mp4
+sample_lib*/
+benchmarks/
+datasets/
+test_data/
+
+# --- Installers / binaries / OS files ---
+*.exe
+*.msi
+*.zip
+Thumbs.db
+desktop.ini
+.DS_Store

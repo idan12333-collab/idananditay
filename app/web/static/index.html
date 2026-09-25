@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Photo Album — ספריית תמונות</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">📷 AI Photo Album <span class="muted">· אינדוקס ספרייה (Milestone 1)</span></div>
+  <div id="health" class="muted"></div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. בחירת תיקיית תמונות</h2>
+    <p class="muted">התמונות המקוריות רק נקראות — לעולם לא משתנות. כל הנתונים נשמרים מקומית במחשב שלך.</p>
+    <div class="row">
+      <input id="pathInput" type="text" placeholder="לדוגמה: C:\Users\me\Pictures\Family" dir="ltr">
+      <button id="browseBtn" class="secondary">בחירה…</button>
+      <button id="addBtn">סרוק תיקייה</button>
+    </div>
+    <div id="formError" class="error"></div>
+  </section>
+
+  <section class="card" id="librariesCard" hidden>
+    <h2>2. ספריות</h2>
+    <div class="row">
+      <select id="librarySelect"></select>
+      <button id="rescanBtn" class="secondary">סריקה מחדש</button>
+      <button id="deleteBtn" class="danger">מחיקת נתוני אינדקס</button>
+    </div>
+    <div id="jobBox" hidden>
+      <div class="progress"><div id="progressBar"></div></div>
+      <div class="row between">
+        <span id="jobText"></span>
+        <button id="cancelBtn" class="secondary small">ביטול</button>
+      </div>
+    </div>
+    <div id="stats" class="stats"></div>
+    <div id="years" class="years"></div>
+  </section>
+
+  <section class="card" id="galleryCard" hidden>
+    <div class="row between">
+      <h2>3. תמונות</h2>
+      <div class="row">
+        <label>תצוגה
+          <select id="viewSelect">
+            <option value="grid">גלריה</option>
+            <option value="dups">קבוצות כפילויות</option>
+          </select>
+        </label>
+        <label>סינון
+          <select id="filterSelect">
+            <option value="all">הכול</option>
+            <option value="unique">ייחודיות (ללא כפילויות)</option>
+            <option value="duplicates">כפילויות מיותרות</option>
+            <option value="blurry">מטושטשות</option>
+            <option value="low_res">רזולוציה נמוכה</option>
+            <option value="screenshots">צילומי מסך</option>
+            <option value="exposure">בעיות חשיפה</option>
+            <option value="no_date">ללא תאריך צילום אמין</option>
+            <option value="gps">עם מיקום GPS</option>
+            <option value="errors">קבצים שנכשלו</option>
+            <option value="missing">קבצים שנעלמו</option>
+          </select>
+        </label>
+        <label>שנה <select id="yearSelect"><option value="">כל השנים</option></select></label>
+        <label>מיון
+          <select id="sortSelect">
+            <option value="date">תאריך ↑</option>
+            <option value="date_desc">תאריך ↓</option>
+            <option value="quality">איכות טכנית</option>
+            <option value="path">נתיב</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div id="resultInfo" class="muted"></div>
+    <div id="grid" class="grid"></div>
+    <div id="errorList"></div>
+    <div id="dupList"></div>
+    <div class="center"><button id="moreBtn" class="secondary" hidden>טען עוד</button></div>
+  </section>
+</main>
+
+<dialog id="detail">
+  <div class="detail-body">
+    <img id="detailImg" alt="">
+    <div class="detail-meta">
+      <button id="closeDetail" class="secondary small">סגירה ✕</button>
+      <div id="detailInfo"></div>
+    </div>
+  </div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

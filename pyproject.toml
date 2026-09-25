@@ -1,0 +1,9 @@
+[project]
+name = "ai-photo-album"
+version = "0.1.0"
+description = "AI-powered photo curation and album creation (local-first MVP)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,8 @@
+# Runtime dependencies (see MODEL_REGISTRY.md for license notes)
+fastapi>=0.115
+uvicorn>=0.30
+pydantic-settings>=2.4
+pillow>=10.4
+pillow-heif>=0.18
+imagehash>=4.3
+numpy>=2.0
