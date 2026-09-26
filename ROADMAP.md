@@ -23,7 +23,7 @@ Guardrails:
 - [x] Add test framework (pytest, synthetic fixture photos)
 - [x] Create basic FastAPI health endpoint (`GET /api/health`)
 
-## Milestone 1 — Photo ingestion & technical filtering (IN PROGRESS: core done, closing items open)
+## Milestone 1 — Photo ingestion & technical filtering ✅ closed 2026-09-26 (except pre-scan exclusions, W2)
 Customer value: point the app at a library, and it's indexed safely; obvious technical rejects are suggested (never deleted); the user reviews and corrects the suggestions quickly.
 - [x] Scan folder recursively (skips hidden/system folders, Unicode/Hebrew paths)
 - [x] Support JPEG/PNG and practical HEIC handling (+ WebP; HEIC via pillow-heif = POC_ONLY license, see MODEL_REGISTRY)
@@ -36,8 +36,8 @@ Customer value: point the app at a library, and it's indexed safely; obvious tec
 - [x] Local inspection UI (Hebrew RTL); tests with fixture images
 - [x] Bugfix: folder B showed folder A's photo (never-reused IDs + versioned image URLs, ADR-012; single-instance server, ADR-013)
 - [x] UX: in-app folder browser (ADR-014); build-versioned assets + "new version" banner (ADR-015)
-- [ ] **Filter review screen** "מה הסינון הציע?": a summary by reason, a batch review, one-tap restore / remove, a duplicate keeper pick (exactly one copy per group), neutral wording. The filter makes technical judgments only; album relevance comes from M2+. The old technical gallery sits behind debug mode. Print suitability is internal-only. (ADR-017, ADR-018, schema v4; 89 tests). The owner's final manual test is pending.
-- [ ] **Pre-scan exclusions**: mark folders/files that are never scanned (ADR-016, schema v3). Waiting on the filter-review commit.
+- [x] **Filter review screen** "מה הסינון הציע?" (committed `a9783bb`): a summary by reason, a batch review, one-tap restore / remove, a duplicate keeper pick (exactly one copy per group), neutral wording. The filter makes technical judgments only; album relevance comes from M2+. The old technical gallery sits behind debug mode. Print suitability is internal-only. (ADR-017, ADR-018, schema v4; 89 tests).
+- [ ] **Pre-scan exclusions**: mark folders/files that are never scanned (ADR-016, schema v3). Unblocked (filter review committed); partial work exists only on the owner's PC.
 - [x] Owner accepted the filter-review version as good enough to move on (2026-09-26). Further tuning happens later, from real use and more owner feedback. Not a blocker.
 
 ### Filter follow-ups (from the owner's tests, 2026-09-26; to be scheduled later, not blocking)

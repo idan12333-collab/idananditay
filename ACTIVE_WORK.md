@@ -2,20 +2,24 @@
 
 Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · **ACTIVE_WORK.md** = live multi-session coordination.
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
-Last updated: 2026-09-26 ~14:55 (PM).
+Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff Worker #1 (cloud session, 2026-09-26), pending PM review — see `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`.
 
 ## Snapshot
-- Branch `main`, no remote. HEAD = PM docs commit on top of `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets). Every commit up to HEAD has been validated by the owner.
-- Working tree: uncommitted changes from W1 (complete) and W2 (partial). Both touch `app/db/database.py` and `app/db/repository.py`. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
-- Milestones: M0 and M1 closed. **M2 NOT started.** M2 requires: W1 and W2 validated and committed, a clean tree, and the owner's explicit approval.
+- Branch `main`, pushed to GitHub (`origin` = `idan12333-collab/idananditay`). HEAD = `64d099a` (W4, ADR-020) on top of `6a7a1eb` (PM docs), `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets).
+- Working tree (owner's PC): W1, W3 and W4 are committed. Only W2 (partial) is uncommitted, and it exists ONLY on the owner's PC — not in GitHub. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
+- Milestones: M0 and M1 closed (except W2's pre-scan exclusions). **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
 - Plan usage (shared by all sessions): 5-hour window 58% used, resets 15:40 UTC; weekly 15%.
+
+## Acting owner during the Japan trip (owner, 2026-09-26)
+- Itay is the **temporary full project owner** while Idan is away. Everywhere this file says "owner", Itay's approval counts. He approves commits, opens/closes workers, changes priorities, approves milestone progression (incl. M2), makes implementation/product decisions and accepts/rejects Advisor recommendations.
+- The PM runs on Itay's computer as the next Project Manager (see WORKERS.md, `HANDOFF_TO_ITAY.md`). Cloud sessions work on their own branches; only the PM on Itay's machine merges to `main`. Cloud workers follow the "Cloud-worker rule" in WORKERS.md (PM = coordination hub; every task ends with a "Handoff to Project Manager").
 
 ## Coordination protocol (owner-approved 2026-09-26)
 1. The PM session is named **"project manager"**. All sessions run in **auto** mode: cross-session messages and idle notices only flow automatically when the modes match. If a session is in a different mode, the PM tells the owner which one to switch.
 2. Every worker messages "project manager" when it: finishes · is blocked · needs a handoff · has test failures that affect another worker · is about to commit. Each message includes the test result, the exact file/hunk list, and the manual-test steps.
 3. The PM subscribes to one-shot idle notices. No polling, cron, daemons, or extra processes without the owner's approval.
 4. Before starting implementation, a worker checks `git status` and this file, then confirms that its scope doesn't overlap an ACTIVE row.
-5. Commit gate: full test suite passes → owner validates manually (for user-facing work) → owner approves either in the worker's session OR explicitly to the PM, who relays it quoting the owner's words (owner-authorized 2026-09-26) → the worker commits its own hunks only → the staged tree is verified on its own (`git stash --keep-index` + full suite) → the worker reports the hash to the PM.
+5. Commit gate: full test suite passes → owner validates manually (for user-facing work; during the Japan trip Itay acts as owner) → owner approves either in the worker's session OR explicitly to the PM, who relays it quoting the owner's words (owner-authorized 2026-09-26) → the worker commits its own hunks only → the staged tree is verified on its own (`git stash --keep-index` + full suite) → the worker reports the hash to the PM.
 6. Context: the PM checks each worker's context with get_usage before assigning work. At ≥70% no new large task. At ≥85% stop at a clean checkpoint and hand off to a fresh worker (handoff notes go here and in MEMORY.md).
 7. The PM hands itself off the same way: before it gets near its limit, it writes the full state here and in MEMORY.md.
 
@@ -54,7 +58,7 @@ Last updated: 2026-09-26 ~14:55 (PM).
 
 ## Workers
 
-### W1: Quality / print suitability / human review viewer. Status: ACTIVE (fix round 3 after owner test #3, 17:20): per-reason restore / one keeper per duplicate group (a real leak bug), one place per photo, merge blur+small into "איכות ירודה", "שרופה"→"בהירה מדי", neutral wording, investigate screenshot false positives. Context 42%.
+### W1: Quality / print suitability / human review viewer. Status: DONE — committed as `a9783bb` (see WORKERS.md). History below: (fix round 3 after owner test #3, 17:20): per-reason restore / one keeper per duplicate group (a real leak bug), one place per photo, merge blur+small into "איכות ירודה", "שרופה"→"בהירה מדי", neutral wording, investigate screenshot false positives. Context 42%.
 - Rework delivered: a filter-first review ("מה הסינון עשה?" with a summary by reason, a batch grid, restore/"should have filtered", side-by-side duplicate picks in a new `duplicate_picks` table, the `auto_best_photo_id` column) and a simplified viewer. Still schema v4 (additive). ADR-018 revised. The PM verified 87/87 tests. The split still works.
 - Calibration findings (for later): blur rule too lenient (IMG_1160 is out of focus but not flagged); white screenshots flagged "too bright"; the MROC7762 rotation is in the file itself, not our bug.
 - Owner feedback: the photo was shown tiny (160×120 at native size) and the panel was far too technical. The owner wants it simple and interactive. Spec sent by the PM: fit-to-screen, one plain-Hebrew verdict with a traffic-light color, an interactive print-size picker with a visual preview, 👍/👎 labeling with reasons only after 👎, and technical details collapsed. Also check a possible 90° rotation. Backend unchanged. Still NO commit.
@@ -77,7 +81,7 @@ Last updated: 2026-09-26 ~14:55 (PM).
 - Resume condition: W1 committed and verified by the PM → the PM sends "continue" → W2 re-reads the git log, this file, and the shared files → finishes → full suite → owner validates manually → separate commit of W2's hunks.
 - Important: the owner DB goes straight to v4 without a v3 step. v3 must stay additive (`CREATE TABLE IF NOT EXISTS`). Any real data migration must key off table existence or use v5.
 
-### W3: Dashboard Worker (project-management control center, dev tooling). Status: DONE (awaiting the owner's manual test, 17:30). 40/40 own tests pass. The product suite is untouched (88 pass). It will commit only its own paths after approval, and then close.
+### W3: Dashboard Worker (project-management control center, dev tooling). Status: DONE — committed as `55b7761`. History: (awaiting the owner's manual test, 17:30). 40/40 own tests pass. The product suite is untouched (88 pass). It will commit only its own paths after approval, and then close.
 - Session: "Dashboard Worker" (`local_e2492d03-fa5c-4973-943e-6e50128324d7`). Mode: auto. Context: fresh.
 - Starting commit: `7927635`.
 - Scope: a local-only Hebrew dashboard on 127.0.0.1:8790 (stdlib Python + static files). Read-only views of git, the docs, state.json and the transcripts. Actions are prepared requests for the PM (inbox.jsonl + Copy + "open PM"). No watchers or polling of Claude.
@@ -87,7 +91,7 @@ Last updated: 2026-09-26 ~14:55 (PM).
 - Contract: the PM writes `project_management/state.json` and `project_management/daily/*.md`. W3 defines the schema.
 - Completion condition: its own tests pass + the product suite is still green → the owner validates manually → the owner approves in W3's session → a separate commit.
 
-### W4: Dev Reload Worker (dev tooling). Status: PLANNED (owner-approved 2026-09-26; NOT started, NOT implemented)
+### W4: Dev Reload Worker (dev tooling). Status: implementation committed as `64d099a` (ADR-020). The worker's final status/lessons are not in Git — PM to confirm. History below: (owner-approved 2026-09-26)
 - Start conditions:
   - W1 AND W3 have been validated by the owner and committed;
   - a clean tree;
@@ -107,12 +111,12 @@ Last updated: 2026-09-26 ~14:55 (PM).
 - Reservation: ADR-020. No schema, unless a job-status value is needed; that takes v5 after an ADR note.
 
 ## Dependencies
-- W2 → W1 commit (shared files: database.py, repository.py, pipeline.py, routes.py, app.js, index.html, styles.css).
-- M2 → W1 + W2 committed and validated + the owner's approval.
+- W2 → W1 commit: satisfied (`a9783bb`). W2 must rebase its local work on the current HEAD (shared files: database.py, repository.py, pipeline.py, routes.py, app.js, index.html, styles.css).
+- M2 → a W2 decision + clean tree + approval by the owner or Itay (acting owner).
 
 ## Reservations
-- Schema: v3 = W2, v4 = W1. **Next free: v5.**
-- ADR: 016 = W2, 017 = W1, 018 = W1, 019 = W3 (dashboard). **Next free: ADR-020.**
+- Schema: v3 = W2 (uncommitted), v4 = W1 (committed). **Next free: v5.**
+- ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed). **Next free: ADR-021.**
 
 ## Backlog (unassigned, not started)
 - Warn before scanning OneDrive cloud-only files (natural follow-up to W2; assign after W2).
@@ -120,7 +124,7 @@ Last updated: 2026-09-26 ~14:55 (PM).
 - HEIC decoder licensing (pillow-heif = POC_ONLY).
 - `httpx` TestClient deprecation warning.
 - The duplicate file `PRINT_INTEGRATION (1).md` (the owner may delete it).
-- CLAUDE.md rule 1a (read ACTIVE_WORK.md, follow the protocol): approved by the owner and added 2026-09-26, uncommitted. The PM will commit it separately as docs-only after W1's commit.
+- ~~CLAUDE.md rule 1a~~: committed in `6a7a1eb`.
 
 ## Product direction update (owner, 2026-09-26 ~17:25), SUPERSEDES the "people & animals = memories" wording below
 - The rule-based filter makes only technical judgments. Its wording is neutral ("הסינון הציע להוציא" / "פחות מתאימה כרגע לאלבום"). Relevance (landscapes, objects, even screenshots) is decided later by the album request + semantic signals (M2+). Sent to W1.
