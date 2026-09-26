@@ -91,6 +91,7 @@ When a new worker is needed, the PM tells the owner ONLY the exact session name 
   - "אלבום · הסתיימו (ארכיון)" (DONE / RETIRED / REPLACED / FAILED).
 - On every status change: update WORKERS.md (final status, end commit, replacement, handoff) → move the session to the right group. Replacements keep their numbering (#1 archived → #2 active).
 - If the move tool is unavailable, the PM tells the owner the exact single UI action.
+- **Real miss, caught by the owner (2026-09-27):** the PM had let the sidebar drift — a WAITING worker (עובד החרגות #1) sat in the archive as if done, and several WAITING workers (labeling, curation lead, advisor) sat in "פעילים" as if working. The rule above was never wrong; it just wasn't run consistently. Treat "update the sidebar group" as inseparable from "update the status field" — the ACTIVE_WORK.md/WORKERS.md edit and the sidebar move happen in the same turn, never one without the other. When touching ANY worker's status line, re-check its sidebar group in the same turn even if that worker wasn't the reason for the edit.
 
 ## Cloud-worker rule (owner, 2026-09-26; permanent)
 The Project Manager is the operational authority and coordination hub. Cloud workers stay synchronized with the PM on all meaningful work.
