@@ -27,22 +27,37 @@ class AnalyzeConfig:
     blur_threshold: float = 40.0
 
 
-# Common screen resolutions (portrait or landscape) for screenshot detection.
-_SCREEN_SIZES = {
+# Phone screen resolutions (portrait devices): essentially never a coincidental real-photo size,
+# since cameras store native sensor dimensions rather than pixel-exact device-screen crops. Safe to
+# match regardless of image format.
+_PHONE_SCREEN_SIZES = {
     (1170, 2532), (1179, 2556), (1284, 2778), (1290, 2796), (1125, 2436), (1242, 2688), (828, 1792),
     (750, 1334), (1242, 2208), (640, 1136), (1080, 1920), (1080, 2340), (1080, 2400), (1440, 3200),
-    (1440, 2560), (1440, 3040), (720, 1280), (1080, 2220), (1366, 768), (1920, 1080), (2560, 1440),
-    (1280, 720), (1280, 800), (1440, 900), (1536, 864), (1600, 900), (1680, 1050), (1920, 1200),
-    (2560, 1600), (2880, 1800), (3840, 2160), (2048, 2732), (1668, 2388), (1640, 2360), (1620, 2160),
+    (1440, 2560), (1440, 3040), (720, 1280), (1080, 2220), (2048, 2732), (1668, 2388), (1640, 2360),
+    (1620, 2160),
 }
+# Desktop/monitor resolutions: common enough as legitimate photo/video-frame JPEG dimensions too
+# (e.g. 1920x1080, 1280x720), so only trusted for PNG/WEBP screenshots, not JPEG (ADR-023).
+_DESKTOP_SCREEN_SIZES = {
+    (1366, 768), (1920, 1080), (2560, 1440), (1280, 720), (1280, 800), (1440, 900), (1536, 864),
+    (1600, 900), (1680, 1050), (1920, 1200), (2560, 1600), (2880, 1800), (3840, 2160),
+}
+_SCREEN_SIZES = _PHONE_SCREEN_SIZES | _DESKTOP_SCREEN_SIZES
 _SCREENSHOT_NAME = re.compile(r"screen\s?shot|screenshot|צילום\s?מסך|スクリーンショット|captura", re.IGNORECASE)
 
 
 def detect_screenshot(filename: str, fmt: str | None, has_camera_info: bool, w: int, h: int) -> tuple[bool, str | None]:
     if _SCREENSHOT_NAME.search(filename):
         return True, "filename"
-    if not has_camera_info and fmt in ("PNG", "WEBP") and ((w, h) in _SCREEN_SIZES or (h, w) in _SCREEN_SIZES):
-        return True, "screen-size PNG without camera EXIF"
+    if has_camera_info:
+        return False, None
+    if fmt in ("PNG", "WEBP") and ((w, h) in _SCREEN_SIZES or (h, w) in _SCREEN_SIZES):
+        return True, "screen-size image without camera EXIF"
+    # No swapped-orientation check here: dimensions arrive EXIF-orientation-corrected, and a phone
+    # portrait size swapped is exactly a common desktop landscape size (e.g. 1080x1920 <-> 1920x1080)
+    # — checking both orders would flag ordinary landscape JPEGs as screenshots.
+    if fmt == "JPEG" and (w, h) in _PHONE_SCREEN_SIZES:
+        return True, "phone screen-size JPEG without camera EXIF"
     return False, None
 
 

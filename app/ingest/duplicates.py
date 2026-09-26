@@ -4,6 +4,12 @@
 - Near: perceptual hashes within a Hamming distance on BOTH pHash and dHash
   (resized/re-compressed copies, burst shots). Requiring two independent hashes
   to agree reduces false positives.
+- Burst window (ADR-023): real camera bursts (~1s apart) showed, on the owner's real library,
+  much more pHash noise across frames than dHash noise for the same true-duplicate pairs. Within
+  ``burst_window_s`` of another photo's capture time, a looser pHash bound is used instead; dHash
+  is always checked at the normal (strict) threshold. Outside that window the original strict
+  pHash+dHash rule applies unchanged, which is what keeps unrelated-but-similar-looking photos
+  (e.g. two separate visits to the same room) from merging.
 
 Groups are connected components (union-find). Each group keeps one "best" photo; the rest are
 alternates — they are never deleted, only de-prioritized. Best = among members whose technical
@@ -17,6 +23,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 
 import numpy as np
 
@@ -53,6 +60,19 @@ def _hex_array(values: list[str]) -> np.ndarray:
     return np.array([int(v, 16) for v in values], dtype=np.uint64)
 
 
+def _capture_epochs(photos: list[dict]) -> np.ndarray:
+    """Capture time as Unix epoch seconds, NaN where missing/unparseable (never matches a window)."""
+    out = np.full(len(photos), np.nan)
+    for i, p in enumerate(photos):
+        ct = p.get("capture_time")
+        if ct:
+            try:
+                out[i] = datetime.fromisoformat(ct).timestamp()
+            except ValueError:
+                pass
+    return out
+
+
 def choose_best(members: list[dict], margin: float = BEST_QUALITY_MARGIN) -> dict:
     top = max(m.get("quality_score") or 0.0 for m in members)
     close = [m for m in members if (m.get("quality_score") or 0.0) >= top - margin]
@@ -63,9 +83,16 @@ def choose_best(members: list[dict], margin: float = BEST_QUALITY_MARGIN) -> dic
 
 
 def find_duplicate_groups(
-    photos: list[dict], phash_threshold: int = 8, dhash_threshold: int = 12, picks: dict[str, str] | None = None
+    photos: list[dict],
+    phash_threshold: int = 8,
+    dhash_threshold: int = 12,
+    picks: dict[str, str] | None = None,
+    burst_window_s: float | None = None,
+    burst_phash_threshold: int | None = None,
 ) -> list[DuplicateGroup]:
-    """``photos``: dicts with id, content_hash, phash, dhash, quality_score, width, height."""
+    """``photos``: dicts with id, content_hash, phash, dhash, quality_score, width, height, and
+    optionally capture_time (ISO string) when ``burst_window_s``/``burst_phash_threshold`` are given
+    (ADR-023; see module docstring)."""
     n = len(photos)
     if n < 2:
         return []
@@ -82,13 +109,26 @@ def find_duplicate_groups(
     if phash_threshold >= 0:
         ph = _hex_array([p["phash"] for p in photos])
         dh = _hex_array([p["dhash"] for p in photos])
+        use_burst = burst_window_s is not None and burst_phash_threshold is not None
+        times = _capture_epochs(photos) if use_burst else None
+        candidate_phash_threshold = max(phash_threshold, burst_phash_threshold) if use_burst else phash_threshold
         for i in range(n - 1):
             dp = np.bitwise_count(ph[i + 1:] ^ ph[i])
-            cand = np.nonzero(dp <= phash_threshold)[0]
+            cand = np.nonzero(dp <= candidate_phash_threshold)[0]
             if cand.size == 0:
                 continue
             dd = np.bitwise_count(dh[i + 1 + cand] ^ dh[i])
-            for off in cand[dd <= dhash_threshold]:
+            dhash_ok = dd <= dhash_threshold
+            if not dhash_ok.any():
+                continue
+            dp_cand = dp[cand]
+            if use_burst:
+                dt = np.abs(times[i + 1 + cand] - times[i])
+                in_burst = dt <= burst_window_s  # NaN (missing capture_time) compares False
+                phash_ok = np.where(in_burst, dp_cand <= burst_phash_threshold, dp_cand <= phash_threshold)
+            else:
+                phash_ok = dp_cand <= phash_threshold
+            for off in cand[dhash_ok & phash_ok]:
                 uf.union(i, i + 1 + int(off))
 
     components: dict[int, list[int]] = defaultdict(list)

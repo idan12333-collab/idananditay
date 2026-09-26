@@ -262,6 +262,8 @@ class IngestionPipeline:
             phash_threshold=self.settings.near_dup_phash_threshold,
             dhash_threshold=self.settings.near_dup_dhash_threshold,
             picks=self.repo.get_duplicate_picks(),
+            burst_window_s=self.settings.near_dup_burst_window_s,
+            burst_phash_threshold=self.settings.near_dup_burst_phash_threshold,
         )
         self.repo.replace_duplicate_groups(library_id, groups)
         return groups

@@ -311,7 +311,7 @@ class Repository:
     def get_dedup_candidates(self, library_id: int) -> list[dict]:
         with self.db.connect() as c:
             rows = c.execute(
-                "SELECT id, content_hash, phash, dhash, quality_score, width, height FROM photos "
+                "SELECT id, content_hash, phash, dhash, quality_score, width, height, capture_time FROM photos "
                 "WHERE library_id = ? AND status = 'ok' AND phash IS NOT NULL ORDER BY id",
                 (library_id,),
             ).fetchall()

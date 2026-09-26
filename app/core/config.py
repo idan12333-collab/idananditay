@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     # Duplicates: Hamming distance on 64-bit hashes. Both must pass.
     near_dup_phash_threshold: int = 8
     near_dup_dhash_threshold: int = 12
+    # Real camera bursts (~1s apart) show more pHash noise across frames than dHash. Within this
+    # many seconds of another photo's capture time, near_dup_burst_phash_threshold (looser) is used
+    # instead of near_dup_phash_threshold; dHash is still checked at near_dup_dhash_threshold either
+    # way. Values derived from the owner's real library (ADR-023): true bursts reach pHash Hamming
+    # distances up to ~28 while dHash stays low; unrelated photos outside the window did not.
+    near_dup_burst_window_s: float = 3.0
+    near_dup_burst_phash_threshold: int = 28
 
     # Quality heuristics
     blur_threshold: float = 40.0
