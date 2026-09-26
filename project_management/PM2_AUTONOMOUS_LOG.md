@@ -15,6 +15,9 @@
 ### 2026-09-27 ~01:00 — mechanism upgrade
 - Owner correctly pointed out the CronCreate chain dies if the PM session itself resets — it's session-local, in-memory only. Replaced with a durable Scheduled Task (`album-pm2-overnight`, `C:\Users\idan1\.claude\scheduled-tasks\album-pm2-overnight\SKILL.md`), which survives a session reset and even an app restart (catches up on next launch). Each run is a fresh, memory-less session — its own prompt is fully self-contained and reads this log + ACTIVE_WORK.md + WORKERS.md first. It appends its own cycle entries below this one. The live PM #2 session (not the scheduled task) is responsible for summarizing this log to the owner once he's back and chatting again.
 
+### 2026-09-27 ~01:15 — authority scope confirmed with the owner
+- Owner confirmed the scope of "more command" when he's unreachable: **push/nudge stalled workers only, never approve commits/merges** — matches the existing design exactly, no change made. Also confirmed mechanically: PushNotification already detects an active terminal and silently skips sending, so "is the owner present" doesn't need a manual ping-reply protocol — presence is auto-detected.
+
 ### 2026-09-27 ~01:10 — prompt strengthened to actively push, not just observe
 - Owner: the task must actually make progress each cycle, not just check status; may use the local dashboard (127.0.0.1:8790). Rewrote the prompt: it must nudge stalled workers with a concrete next step, verify a reported dependency itself before advancing another worker, and only stop at the one real wall (owner-only commit/merge approval) — queuing that as a one-line decision for the owner instead of a vague "waiting". Everything else non-critical gets a default decision, logged.
 
