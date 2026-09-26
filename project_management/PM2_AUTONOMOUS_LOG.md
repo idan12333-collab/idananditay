@@ -9,5 +9,8 @@
 ## Cycle log
 
 ### 2026-09-27 ~00:45 — setup
-- Owner asked for 24/7 autonomous operation with a returning structured report. This file created to support that. Cron chain (re-scheduling one-shot, ~3h cadence) configured to run indefinitely until the owner interacts again in this session, instead of stopping at ~07:00.
+- Owner asked for 24/7 autonomous operation with a returning structured report. This file created to support that. First attempt: a re-scheduling CronCreate one-shot chain inside the live PM #2 session.
 - State at handoff: see ACTIVE_WORK.md for full detail. In short — עובד תיוג #1 waiting on owner re-test approval (not committed); Quality Worker #2 active in worktree `quality-2`, fixing near-dup merge threshold (ADR-023) + screenshot false negatives; עובד החרגות #1 (W2) waiting for a clean tree, scope now includes the OneDrive-hang fix + cancel-button no-op fix; M1 reopened (real bugs found tonight, not actually closed).
+
+### 2026-09-27 ~01:00 — mechanism upgrade
+- Owner correctly pointed out the CronCreate chain dies if the PM session itself resets — it's session-local, in-memory only. Replaced with a durable Scheduled Task (`album-pm2-overnight`, every 3h, `C:\Users\idan1\.claude\scheduled-tasks\album-pm2-overnight\SKILL.md`), which survives a session reset and even an app restart (catches up on next launch). Each run is a fresh, memory-less session — its own prompt is fully self-contained and reads this log + ACTIVE_WORK.md + WORKERS.md first. It appends its own cycle entries below this one. The live PM #2 session (not the scheduled task) is responsible for summarizing this log to the owner once he's back and chatting again.
