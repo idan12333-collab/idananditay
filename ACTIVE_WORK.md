@@ -11,7 +11,7 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
 - **Git:** main = origin/main, pushed; HEAD ≥ a08601b. M1 is CLOSED (a398ca7). Only the labeling worker's changes may be uncommitted.
 - **Owner:** Idan flies **Monday 2026-09-28**. From then on **Itay is the acting owner** (HANDOFF_TO_ITAY.md). Only one PM writes to main.
 - **Active:**
-  - **עובד תיוג #1** (`local_73ba90f8-59c2-4511-aaaa-be8da01ba263`): building the seed-labeling screen per evaluation/SEED_WORKER_BRIEF.md (schema v5, ADR-022). When it reports: verify the tests → give the owner the ≤5 check steps → the owner approves → the worker commits → push → close it (archive group).
+  - **עובד תיוג #1** (`local_73ba90f8-59c2-4511-aaaa-be8da01ba263`): schema v5 + ADR-022, READY FOR OWNER TEST (not committed). 173/173 tests pass (12 new). Reports now to PM #2. Waiting on the owner's manual test (5 steps below) before commit.
   - **Idan:** importing ~500 ORIGINAL photos (evaluation/LIBRARY_SPEC.md) and then labels the ~300-photo seed BEFORE the flight.
 - **Waiting (wake at checkpoints only):**
   - **אחראי בקרת איכות תמונות #1** (`local_eaba79d0-…`): next is evaluation/metrics.py, the round-0 baseline, after the worker's v5 commit + the seed labels.
