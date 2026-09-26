@@ -4,15 +4,20 @@ Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · 
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
 Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff Worker #1 (cloud session, 2026-09-26), pending PM review — see `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`.
 
-## >>> PM HANDOFF (18:35 on 2026-09-26): READ THIS FIRST, new PM <<<
-- Committed: `a9783bb` (Quality #1, DONE), `55b7761` (Dashboard #1, DONE), `6a7a1eb` (PM docs). Tree: only the uncommitted W2 hunks (database.py, repository.py, scanner.py, folder_browser.py).
-- Next, in order:
-  1. The owner opens "Project Manager #2" (fresh PM). It reads this file, WORKERS.md, MEMORY.md and ROADMAP.md, and takes over.
-  2. After the quota reset, the PM asks the owner to open "Dev Reload Worker #1" → onboarding interview → brief (W4 section below).
-  3. After Dev Reload is committed → resume Exclusions Worker #1 (re-read HEAD first; its SCHEMA_VERSION comment conflicts with the committed line "4 # v3 is reserved for ADR-016").
-- Commit approvals: when a worker asked the owner in its own chat, the owner must answer there. Relayed approvals are accepted by some workers and refused by others.
-- Efficiency: PM #1 became the largest consumer (56 requests / 17M cache-read in ~40 min), from reacting to idle notices + relays at 344k context. PM #2: ignore stale idle notices, batch state.json updates.
-- The dashboard state is in project_management/state.json (PM-written, git-ignored).
+## >>> PM HANDOFF: READ THIS FIRST, Project Manager #2 (written by PM #1, 2026-09-26 ~23:10) <<<
+- **Why the handoff:** PM #1 reached ~540k context and became the biggest usage consumer (84 requests / 41M cache-read since the 22:10 reset). Per I-010, PM #2 runs on a cheaper model for routine coordination and escalates to a strong model for complex decisions.
+- **Git:** main = origin/main, pushed; HEAD ≥ a08601b. M1 is CLOSED (a398ca7). Only the labeling worker's changes may be uncommitted.
+- **Owner:** Idan flies **Monday 2026-09-28**. From then on **Itay is the acting owner** (HANDOFF_TO_ITAY.md). Only one PM writes to main.
+- **Active:**
+  - **עובד תיוג #1** (`local_73ba90f8-59c2-4511-aaaa-be8da01ba263`): building the seed-labeling screen per evaluation/SEED_WORKER_BRIEF.md (schema v5, ADR-022). When it reports: verify the tests → give the owner the ≤5 check steps → the owner approves → the worker commits → push → close it (archive group).
+  - **Idan:** importing ~500 ORIGINAL photos (evaluation/LIBRARY_SPEC.md) and then labels the ~300-photo seed BEFORE the flight.
+- **Waiting (wake at checkpoints only):**
+  - **אחראי בקרת איכות תמונות #1** (`local_eaba79d0-…`): next is evaluation/metrics.py, the round-0 baseline, after the worker's v5 commit + the seed labels.
+  - **יועץ מוצר ויעילות #1** (`local_3c7e1461-…`).
+  - **Cloud Worker #1** ("פרויקט ביקורת ענן"): no task. The owner relays messages; the PM writes the exact text.
+- **Next after the seed:** baseline (curation lead) → the 7a POC (SigLIP 2 base vs OpenCLIP XLM-R B/32; verify licenses locally first) → Advisor review → I-013 concierge album (gated) → 7b people POC. Itay's second library (I-016) needs Itay's consent.
+- **Pending triggers:** none scheduled. Subscribe to a one-shot idle notice on active workers only. Cron is session-only; re-create any triggers you need yourself.
+- **Owner communication style:** simple Hebrew, short; ask only real questions; the owner isn't the reminder system; state exactly which session to open and nothing more.
 
 ## Scheduled triggers (standing rule: the PM schedules every known follow-up itself; the owner isn't the reminder system)
 | Trigger | Mechanism | Fires | Action | Must stay alive | If it fails |

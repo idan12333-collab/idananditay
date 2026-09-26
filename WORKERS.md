@@ -140,3 +140,6 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - **Last handoff:** `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`.
 - **Next action:** the owner relays the PM's message → Cloud Worker #1 runs I-014 → its handoff returns via the owner → the PM reviews and decides the next step.
 - **Who performs the communication:** the owner (relay only).
+
+### עובד תיוג #1 (Labeling Worker)
+- Status: **PLANNED**. The owner approved the seed-labeling screen concept on 2026-09-26 (I-009 gate passed). Brief: `evaluation/SEED_WORKER_BRIEF.md` (schema v5, ADR-022). Deadline: the seed must be labeled before the owner's flight on Monday 2026-09-28.
