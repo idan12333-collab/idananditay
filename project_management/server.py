@@ -7,7 +7,9 @@ JSON-only POSTs, static files from one fixed directory, no shell, read-only git.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import socket
 import sys
 import threading
@@ -21,6 +23,21 @@ from .dashboard import Dashboard
 from .sources import inbox
 
 DEFAULT_PORT = 8790
+DEV_RELOAD = os.environ.get("AI_ALBUM_DEV_RELOAD") == "1"  # set only by scripts/dev_supervisor.py (ADR-020)
+
+
+def compute_build_id(root: Path = PACKAGE_DIR) -> str:
+    """Fingerprint of the dashboard code (tests and runtime data excluded)."""
+    h = hashlib.sha256()
+    for p in sorted(root.rglob("*")):
+        if (p.is_file() and p.suffix in {".py", ".js", ".html", ".css"}
+                and not {"__pycache__", "tests"} & set(p.relative_to(root).parts)):
+            h.update(p.relative_to(root).as_posix().encode())
+            h.update(p.read_bytes())
+    return h.hexdigest()[:12]
+
+
+BUILD_ID = compute_build_id()
 WEB_DIR = PACKAGE_DIR / "web"
 MAX_BODY = 16 * 1024
 STATIC_FILES = {  # URL path -> (file name in WEB_DIR, content type). Nothing else is served.
@@ -90,6 +107,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._error(HTTPStatus.FORBIDDEN, "host not allowed")
         path = self.path.split("?", 1)[0]
+        if path == "/api/health":  # which copy of the code answers (dev auto-reload, ADR-020)
+            return self._json(HTTPStatus.OK, {"status": "ok", "app": "PM Dashboard", "build": BUILD_ID,
+                                              "pid": os.getpid(), "dev_reload": DEV_RELOAD,
+                                              "dev_instance": os.environ.get("AI_ALBUM_DEV_INSTANCE")})
         if path == "/api/dashboard":
             return self._json(HTTPStatus.OK, self.dashboard.build())
         if path in STATIC_FILES:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -69,6 +70,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # pair a new page with an old cached app.js) and into a <meta> tag the page compares with
         # /api/health to offer a reload when the server was updated (ADR-015).
         html = (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("__BUILD__", BUILD_ID)
+        if os.environ.get("AI_ALBUM_DEV_RELOAD") == "1":
+            # Dev mode only (scripts/dev_supervisor.py, ADR-020): the page reloads itself on a new build.
+            html = html.replace("</head>", '<meta name="app-dev-reload" content="1"></head>', 1)
         return HTMLResponse(html)
 
     return app

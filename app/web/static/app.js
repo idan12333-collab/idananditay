@@ -832,6 +832,15 @@ $("fsMore").addEventListener("click", fsLoadMore);
 
 $("reloadBtn").addEventListener("click", () => location.reload());
 setInterval(checkForUpdate, 30000);
+// Dev mode (start_dev.bat, ADR-020): reload by itself as soon as the server runs a new build.
+if (document.querySelector('meta[name="app-dev-reload"]')) {
+  setInterval(async () => {
+    try {
+      const h = await api("/api/health");
+      if (h.build && h.build !== PAGE_BUILD) location.reload();
+    } catch (_) { /* server restarting */ }
+  }, 2000);
+}
 window.addEventListener("focus", checkForUpdate);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
 

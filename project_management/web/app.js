@@ -616,3 +616,14 @@ $("rd-copy-btn").addEventListener("click", (ev) => copy($("rd-copy").value, ev.c
 load();
 setInterval(() => { if (!document.hidden) load(); }, POLL_MS);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+
+// Dev mode (start_dev.bat, ADR-020): reload by itself as soon as the server runs a new build.
+(async () => {
+  const health = async () => (await fetch("/api/health", { cache: "no-store" })).json();
+  let first;
+  try { first = await health(); } catch (_) { return; }
+  if (!first.dev_reload) return;
+  setInterval(async () => {
+    try { if ((await health()).build !== first.build) location.reload(); } catch (_) { /* restarting */ }
+  }, 2000);
+})();

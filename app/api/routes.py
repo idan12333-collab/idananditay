@@ -82,6 +82,7 @@ def health(request: Request) -> dict:
         "version": __version__,
         "build": BUILD_ID,  # fingerprint of the running code — shows which copy of the app answers
         "pid": process_id(),
+        "dev_instance": os.environ.get("AI_ALBUM_DEV_INSTANCE"),  # dev auto-reload only (ADR-020)
         "database": "ok" if request.app.state.db.ping() else "error",
         "heic_supported": HEIC_SUPPORTED,
         "supported_extensions": sorted(SUPPORTED_EXTENSIONS),

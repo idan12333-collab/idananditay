@@ -10,6 +10,10 @@ http://127.0.0.1:8765.
 
 Run tests: double-click **`run_tests.bat`**.
 
+Developer mode: double-click **`start_dev.bat`** (instead of `start.bat` and the dashboard .bat).
+It runs the app (8765) and the project dashboard (8790) and restarts them automatically when a
+code file changes; the open page reloads itself (ADR-020). Close any normal app window first.
+
 Manual:
 ```
 py -3.12 -m venv %USERPROFILE%\.ai-photo-album\venv

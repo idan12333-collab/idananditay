@@ -209,3 +209,31 @@ it is). The transcript format is undocumented, so that adapter is isolated in on
 module and degrades to "no data". Hebrew-only UI.
 
 **Reversible?** Yes — delete `project_management/` and the `.bat`; the product is untouched.
+
+## ADR-020 — Dev-mode auto-reload supervisor (dev tooling)
+
+**Status:** accepted (2026-09-26, owner approved via PM).
+
+**Context.** During development every code change required the owner to close the CMD
+window and restart the app/dashboard, and a forgotten old process could keep serving stale
+code (the ADR-012/013 incident).
+
+**Decision.** `start_dev.bat` runs `scripts/dev_supervisor.py` (stdlib only), which starts the
+album app and the dashboard as child processes and polls file mtimes every 0.5 s — only
+`.py/.html/.js/.css` under `app/` and `project_management/` (never tests, `__pycache__`, `.git`,
+editor/OneDrive temp names, or the data in `~/.ai-photo-album`). A burst of changes is debounced
+(1 s of quiet) into one restart of the affected server: kill the whole process tree (the venv
+`python.exe` is a launcher whose real interpreter is a grandchild) → verify it exited and the
+port is free → start the new child → verify `/api/health` echoes a fresh per-start token
+(`dev_instance`). Any failure is reported loudly and nothing stale is left serving. In dev mode
+only (`AI_ALBUM_DEV_RELOAD=1`), the app page (a `<meta>` injected by `main.py`) and the dashboard
+page (`dev_reload` in its new `/api/health`) poll every 2 s and reload on a new build. Servers are
+killed, not shut down gracefully, so a scan cannot write "done": it stays `running` and the next
+start marks it `interrupted` (existing JobManager behaviour; regression-tested).
+
+**Tradeoffs.** Polling instead of OS file events (no new dependency; negligible cost on these
+small trees). Any code save restarts the server and cancels a running scan (dev only).
+`start.bat` / `start_project_manager.bat` are unchanged.
+
+**Reversible?** Yes — delete `start_dev.bat` and `scripts/dev_supervisor.py`; the hooks are inert
+without the env vars.
