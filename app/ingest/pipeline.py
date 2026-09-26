@@ -75,7 +75,6 @@ class IngestionPipeline:
             thumbnail_quality=s.thumbnail_quality,
             analysis_max_side=s.analysis_max_side,
             blur_threshold=s.blur_threshold,
-            low_res_min_megapixels=s.low_res_min_megapixels,
         )
 
     def _analyze_all(self, paths: list[str], workers: int) -> Iterator[dict]:
@@ -167,6 +166,20 @@ class IngestionPipeline:
             candidates,
             phash_threshold=self.settings.near_dup_phash_threshold,
             dhash_threshold=self.settings.near_dup_dhash_threshold,
+            picks=self.repo.get_duplicate_picks(),
         )
         self.repo.replace_duplicate_groups(library_id, groups)
         return groups
+
+
+def refresh_duplicate_groups(settings: Settings, repo: Repository) -> int:
+    """Recompute duplicate groups (and their best photo) of every library from stored hashes.
+
+    Used after a schema migration that changes quality scores or the best-photo rule (v4, ADR-017);
+    cheap — no image is decoded. Returns the number of libraries refreshed.
+    """
+    pipeline = IngestionPipeline(settings, repo)
+    libraries = repo.list_libraries()
+    for lib in libraries:
+        pipeline.update_duplicates(lib["id"])
+    return len(libraries)

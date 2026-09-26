@@ -48,51 +48,68 @@ def normalize_contrast(gray: np.ndarray) -> np.ndarray:
     return (gray - lo) * (255.0 / (hi - lo))
 
 
+# Exposure rules (luminance 0..255). Exposed so the review UI can show "value vs rule".
+UNDEREXPOSED_MEAN = 45
+UNDEREXPOSED_DARK_FRACTION = 0.65
+OVEREXPOSED_MEAN = 225
+OVEREXPOSED_BRIGHT_FRACTION = 0.45
+
+# Weights of the technical quality score. Resolution is deliberately NOT part of it (ADR-017):
+# whether a photo has enough pixels depends on the print size, which is judged per layout slot.
+# The previous sharpness/exposure/contrast weights (0.5/0.2/0.1) are kept in the same proportion.
+SCORE_WEIGHTS = {"sharpness": 0.625, "exposure": 0.25, "contrast": 0.125}
+
+
+def exposure_issue_for(brightness: float, dark_fraction: float, bright_fraction: float) -> str | None:
+    if brightness < UNDEREXPOSED_MEAN or dark_fraction > UNDEREXPOSED_DARK_FRACTION:
+        return "underexposed"
+    if brightness > OVEREXPOSED_MEAN or bright_fraction > OVEREXPOSED_BRIGHT_FRACTION:
+        return "overexposed"
+    return None
+
+
+def quality_components(sharpness: float, exposure_issue: str | None, contrast: float) -> dict[str, float]:
+    return {
+        "sharpness": round(min(1.0, math.log10(1.0 + max(sharpness, 0.0)) / 3.0), 3),  # ~1000 -> 1.0
+        "exposure": 1.0 if exposure_issue is None else 0.4,
+        "contrast": round(min(1.0, max(contrast, 0.0) / 50.0), 3),
+    }
+
+
+def combined_quality_score(sharpness: float, exposure_issue: str | None, contrast: float) -> float:
+    """Transparent technical score 0..1 from stored measurements (also used by the v3 migration)."""
+    c = quality_components(sharpness, exposure_issue, contrast)
+    return round(sum(SCORE_WEIGHTS[k] * c[k] for k in SCORE_WEIGHTS), 4)
+
+
 class ClassicalQualityAnalyzer(ImageQualityAnalyzer):
-    name = "classical-v1"
+    name = "classical-v2"
 
     def __init__(self, blur_threshold: float = 40.0, analysis_max_side: int = 1024):
         self.blur_threshold = blur_threshold
         self.analysis_max_side = analysis_max_side
 
-    def analyze(self, image: Image.Image, original_megapixels: float) -> QualityReport:
+    def analyze(self, image: Image.Image) -> QualityReport:
         gray_img = image.convert("L")
         if max(gray_img.size) > self.analysis_max_side:
             gray_img.thumbnail((self.analysis_max_side, self.analysis_max_side), Image.Resampling.BILINEAR)
         gray = np.asarray(gray_img, dtype=np.float32)
 
-        sharpness = tile_sharpness(normalize_contrast(gray))
+        sharpness = round(tile_sharpness(normalize_contrast(gray)), 2)
         brightness = float(gray.mean())
-        contrast = float(gray.std())
+        contrast = round(float(gray.std()), 2)
         dark = float((gray < 16).mean())
         bright = float((gray > 245).mean())
-
-        exposure_issue = None
-        if brightness < 45 or dark > 0.65:
-            exposure_issue = "underexposed"
-        elif brightness > 225 or bright > 0.45:
-            exposure_issue = "overexposed"
-
-        # Transparent score: each component 0..1, fixed weights (logged in `components`).
-        sharp_c = min(1.0, math.log10(1.0 + sharpness) / 3.0)          # ~1000 -> 1.0
-        exposure_c = 1.0 if exposure_issue is None else 0.4
-        contrast_c = min(1.0, contrast / 50.0)
-        resolution_c = min(1.0, math.sqrt(max(original_megapixels, 0.0) / 8.0))  # 8 MP -> 1.0
-        score = 0.5 * sharp_c + 0.2 * exposure_c + 0.1 * contrast_c + 0.2 * resolution_c
+        exposure_issue = exposure_issue_for(brightness, dark, bright)
 
         return QualityReport(
-            sharpness=round(sharpness, 2),
+            sharpness=sharpness,
             brightness=round(brightness, 2),
-            contrast=round(contrast, 2),
+            contrast=contrast,
             dark_fraction=round(dark, 4),
             bright_fraction=round(bright, 4),
             exposure_issue=exposure_issue,
             is_blurry=sharpness < self.blur_threshold,
-            quality_score=round(score, 4),
-            components={
-                "sharpness": round(sharp_c, 3),
-                "exposure": exposure_c,
-                "contrast": round(contrast_c, 3),
-                "resolution": round(resolution_c, 3),
-            },
+            quality_score=combined_quality_score(sharpness, exposure_issue, contrast),
+            components=quality_components(sharpness, exposure_issue, contrast),
         )

@@ -25,7 +25,6 @@ class AnalyzeConfig:
     thumbnail_quality: int = 85
     analysis_max_side: int = 1024
     blur_threshold: float = 40.0
-    low_res_min_megapixels: float = 1.0
 
 
 # Common screen resolutions (portrait or landscape) for screenshot detection.
@@ -77,10 +76,9 @@ def analyze_file(path_str: str, config: AnalyzeConfig) -> dict:
             rgb = to_rgb(oriented)
 
         width, height = oriented_size(raw_w, raw_h, meta.orientation)
-        megapixels = width * height / 1_000_000
         capture, source = resolve_capture_time(meta, path.name, st.st_mtime)
 
-        quality = ClassicalQualityAnalyzer(config.blur_threshold, config.analysis_max_side).analyze(rgb, megapixels)
+        quality = ClassicalQualityAnalyzer(config.blur_threshold, config.analysis_max_side).analyze(rgb)
         phash, dhash = perceptual_hashes(rgb)
         is_shot, shot_reason = detect_screenshot(path.name, fmt, meta.has_camera_info, width, height)
 
@@ -111,7 +109,6 @@ def analyze_file(path_str: str, config: AnalyzeConfig) -> dict:
             exposure_issue=quality.exposure_issue,
             quality_score=quality.quality_score,
             is_blurry=int(quality.is_blurry),
-            is_low_res=int(megapixels < config.low_res_min_megapixels),
             is_screenshot=int(is_shot),
             screenshot_reason=shot_reason,
             thumbnail_path=thumb_rel,

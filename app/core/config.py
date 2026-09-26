@@ -13,6 +13,8 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.printing.suitability import PrintPolicy, PrintSize
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -55,7 +57,25 @@ class Settings(BaseSettings):
 
     # Quality heuristics
     blur_threshold: float = 40.0
-    low_res_min_megapixels: float = 1.0
+
+    # Print suitability (ADR-017). Starting defaults only — the chosen print provider's
+    # specification must override them. Resolution never excludes a photo; it only informs.
+    print_excellent_ppi: float = 300.0
+    print_good_ppi: float = 200.0
+    print_acceptable_ppi: float = 150.0
+    # Reference slot sizes (w, h) in cm used to describe what a photo can be printed at.
+    print_reference_sizes_cm: list[tuple[float, float]] = [(6, 9), (10, 15), (13, 18), (15, 20), (20, 30), (30, 30)]
+    # Smallest slot layouts are expected to offer; below acceptable PPI here = "extremely low resolution".
+    print_min_slot_cm: tuple[float, float] = (6, 9)
+
+    def print_policy(self) -> PrintPolicy:
+        return PrintPolicy(
+            excellent_ppi=self.print_excellent_ppi,
+            good_ppi=self.print_good_ppi,
+            acceptable_ppi=self.print_acceptable_ppi,
+            reference_sizes=tuple(PrintSize(w, h) for w, h in self.print_reference_sizes_cm),
+            min_slot=PrintSize(*self.print_min_slot_cm),
+        )
 
     @property
     def db_path(self) -> Path:

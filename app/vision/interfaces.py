@@ -26,17 +26,21 @@ class QualityReport:
     bright_fraction: float           # share of near-white pixels
     exposure_issue: str | None       # underexposed | overexposed | None
     is_blurry: bool
-    quality_score: float             # 0..1, transparent combination of the above + resolution
+    quality_score: float             # 0..1, transparent combination of sharpness/exposure/contrast
     components: dict[str, float] = field(default_factory=dict)
 
 
 class ImageQualityAnalyzer(ABC):
-    """Technical (not aesthetic) quality: blur, exposure, resolution."""
+    """Technical (not aesthetic) quality: blur, exposure, contrast.
+
+    Resolution is not a quality signal here: print suitability depends on the print size and is
+    handled by ``app.printing.suitability`` (ADR-017).
+    """
 
     name: str
 
     @abstractmethod
-    def analyze(self, image: Image.Image, original_megapixels: float) -> QualityReport: ...
+    def analyze(self, image: Image.Image) -> QualityReport: ...
 
 
 @dataclass

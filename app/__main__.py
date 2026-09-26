@@ -42,8 +42,12 @@ def main(argv: list[str] | None = None) -> int:
             settings.ingest_workers = args.workers
         settings.ensure_dirs()
         db = Database(settings.db_path)
-        db.initialize()
-        repo = Repository(db)
+        migrated = db.initialize()
+        repo = Repository(db, settings.print_policy())
+        if 4 in migrated:
+            from app.ingest.pipeline import refresh_duplicate_groups
+
+            refresh_duplicate_groups(settings, repo)
         root = Path(args.folder).expanduser().resolve()
         if not root.is_dir():
             print(f"Folder not found: {root}", file=sys.stderr)

@@ -45,6 +45,27 @@
     <div id="years" class="years"></div>
   </section>
 
+  <!-- "What did the filter do?" — the main review flow (ADR-018): summary, reasons, one-tap fixes. -->
+  <section class="card" id="reviewCard" hidden>
+    <h2>מה הסינון הציע?</h2>
+    <div id="fsHeadline" class="fs-headline"></div>
+    <div id="fsFeedback" class="fs-feedback"></div>
+    <div id="fsReasons" class="fs-reasons"></div>
+    <div id="fsHint" class="fs-hint"></div>
+    <div id="fsGrid" class="fs-grid"></div>
+    <div id="fsDups"></div>
+    <div class="center"><button id="fsMore" class="secondary" hidden>טען עוד</button></div>
+    <details class="fs-advanced">
+      <summary>נתונים לכיול הסינון (מתקדם)</summary>
+      <div class="row">
+        <button id="reviewStartBtn" class="secondary small">מעבר אחת-אחת על תמונות שטרם נבדקו</button>
+        <a id="exportJson" class="muted" href="#" download>ייצוא JSON</a>
+        <a id="exportCsv" class="muted" href="#" download>ייצוא CSV</a>
+      </div>
+      <div id="reviewSummary"></div>
+    </details>
+  </section>
+
   <section class="card" id="galleryCard" hidden>
     <div class="row between">
       <h2>3. תמונות</h2>
@@ -61,13 +82,19 @@
             <option value="unique">ייחודיות (ללא כפילויות)</option>
             <option value="duplicates">כפילויות מיותרות</option>
             <option value="blurry">מטושטשות</option>
-            <option value="low_res">רזולוציה נמוכה</option>
+            <option value="extreme_low_res">איכות ירודה — קטנה מדי</option>
             <option value="screenshots">צילומי מסך</option>
             <option value="exposure">בעיות חשיפה</option>
             <option value="no_date">ללא תאריך צילום אמין</option>
             <option value="gps">עם מיקום GPS</option>
             <option value="errors">קבצים שנכשלו</option>
             <option value="missing">קבצים שנעלמו</option>
+            <optgroup label="בדיקה אנושית">
+              <option value="unreviewed">טרם נבדקו</option>
+              <option value="review_good">סומנו "נראית טוב"</option>
+              <option value="review_bad">סומנו "לא מתאימה"</option>
+              <option value="review_disagree">הניתוח האוטומטי והבודק לא מסכימים</option>
+            </optgroup>
           </select>
         </label>
         <label>שנה <select id="yearSelect"><option value="">כל השנים</option></select></label>
@@ -89,14 +116,54 @@
   </section>
 </main>
 
-<dialog id="detail">
-  <div class="detail-body">
-    <img id="detailImg" alt="">
-    <div class="detail-meta">
-      <button id="closeDetail" class="secondary small">סגירה ✕</button>
-      <div id="detailInfo"></div>
+<!-- Full-screen review viewer (ADR-018): the photo big, one plain verdict, two buttons.
+     Technical measurements live in a collapsed section. -->
+<dialog id="viewer" class="viewer">
+  <div class="v-stage" id="vStage">
+    <img id="vImg" alt="">
+    <div id="vStageNote" class="v-stage-note" hidden></div>
+    <div id="vLoading" class="v-loading" hidden>טוען…</div>
+    <button id="vPrev" class="v-nav v-prev" title="הקודמת (→)">›</button>
+    <button id="vNext" class="v-nav v-next" title="הבאה (←)">‹</button>
+    <div class="v-toolbar">
+      <button id="vClose" class="small" title="Esc">✕ סגירה</button>
+      <span id="vPos" class="v-pos"></span>
+      <button id="vZoom" class="small" title="Z">🔍 100%</button>
     </div>
   </div>
+  <aside class="v-panel">
+    <section class="v-verdict-box">
+      <div id="vVerdict" class="v-verdict"></div>
+      <div id="vIssues" class="v-issues"></div>
+    </section>
+
+    <section class="v-review">
+      <div class="v-label">מה דעתך על התמונה?</div>
+      <div class="v-verdicts">
+        <button id="vGood" class="v-good">👍 טובה <kbd>1</kbd></button>
+        <button id="vBad" class="v-bad">👎 לא טובה <kbd>2</kbd></button>
+      </div>
+      <div id="vAfterBad" class="v-after-bad" hidden>
+        <div class="v-label">למה? (לא חובה)</div>
+        <div id="vReasons" class="v-reasons"></div>
+        <button id="vContinue" class="secondary">המשך לתמונה הבאה ←</button>
+      </div>
+      <div class="row between v-review-foot">
+        <span id="vReviewState" class="v-state"></span>
+        <span>
+          <a href="#" id="vNoteLink">הוסף הערה</a>
+          <a href="#" id="vClear" hidden>ביטול הסימון</a>
+        </span>
+      </div>
+      <textarea id="vNote" rows="2" placeholder="הערה" hidden></textarea>
+    </section>
+
+    <details id="vTech" class="v-tech">
+      <summary>פרטים טכניים (מפתחים)</summary>
+      <div id="vInfo"></div>
+      <label class="v-advance"><input type="checkbox" id="vAdvance"> מעבר אוטומטי לתמונה הבאה אחרי סימון</label>
+    </details>
+  </aside>
 </dialog>
 
 <dialog id="fbDialog" class="fb">

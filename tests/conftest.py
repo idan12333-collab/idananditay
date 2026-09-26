@@ -27,7 +27,7 @@ def settings(tmp_path: Path) -> Settings:
 def repo(settings: Settings) -> Repository:
     db = Database(settings.db_path)
     db.initialize()
-    return Repository(db)
+    return Repository(db, settings.print_policy())
 
 
 @pytest.fixture(scope="session")

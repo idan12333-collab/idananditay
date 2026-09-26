@@ -12,7 +12,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4  # v3 is reserved for ADR-016 (separate change)
+# v4 (2026-09-26): drop photos.is_low_res, quality_score without resolution, review_labels (ADR-017/018)
 
 # Tables whose IDs appear in URLs, labels or projects. AUTOINCREMENT guarantees a deleted ID is
 # never handed out again (plain INTEGER PRIMARY KEY reuses max(id)+1 after deletes).
@@ -65,7 +66,6 @@ CREATE TABLE IF NOT EXISTS photos (
     exposure_issue      TEXT,                   -- underexposed | overexposed | NULL
     quality_score       REAL,                   -- 0..1 technical quality
     is_blurry           INTEGER NOT NULL DEFAULT 0,
-    is_low_res          INTEGER NOT NULL DEFAULT 0,
     is_screenshot       INTEGER NOT NULL DEFAULT 0,
     screenshot_reason   TEXT,
     thumbnail_path      TEXT,                   -- relative to thumbnails dir
@@ -86,8 +86,29 @@ CREATE TABLE IF NOT EXISTS duplicate_groups (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     library_id    INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
     kind          TEXT NOT NULL,                -- exact | near
-    best_photo_id INTEGER,
+    best_photo_id INTEGER,                      -- effective keeper (the user's pick wins, ADR-018)
+    auto_best_photo_id INTEGER,                 -- what the automatic rule chose
     size          INTEGER NOT NULL
+);
+
+-- Human review labels (ADR-018). Kept apart from the automatic analysis in `photos`, which a label
+-- never modifies. Keyed by file content so a label survives rescans and follows identical copies.
+CREATE TABLE IF NOT EXISTS review_labels (
+    content_hash  TEXT PRIMARY KEY,
+    verdict       TEXT NOT NULL CHECK (verdict IN ('good', 'bad')),
+    reasons       TEXT NOT NULL DEFAULT '[]',   -- JSON array of reason tags
+    note          TEXT,
+    photo_id      INTEGER,                      -- photo it was labeled from (informational)
+    auto_snapshot TEXT,                         -- JSON: automatic flags/metrics shown at label time
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+-- The user's choice of which photo to keep in a duplicate group (ADR-018). Keyed by content so it
+-- survives the regrouping every scan performs; nothing is ever deleted.
+CREATE TABLE IF NOT EXISTS duplicate_picks (
+    content_hash  TEXT PRIMARY KEY,
+    created_at    TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
@@ -127,18 +148,27 @@ class Database:
         finally:
             conn.close()
 
-    def initialize(self) -> None:
+    def initialize(self) -> list[int]:
+        """Create/upgrade the schema. Returns the schema versions migrated to (empty if none)."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        applied: list[int] = []
         with self.connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
-            if _stored_version(conn) == 1:
+            version = _stored_version(conn)
+            if version == 1:
                 _migrate_v1_to_v2(conn)
+                applied.append(2)
             conn.executescript(SCHEMA)
+            if version is not None and version < 4:
+                _migrate_to_v4(conn)
+                applied.append(4)
+            _ensure_additive_columns(conn)
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES('schema_version', ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (str(SCHEMA_VERSION),),
             )
+        return applied
 
     def ping(self) -> bool:
         with self.connect() as conn:
@@ -164,9 +194,11 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
         script = ["BEGIN;"]
         for table in NEVER_REUSED_ID_TABLES:
             ddl = re.search(rf"CREATE TABLE IF NOT EXISTS {table} \(.*?\n\);", SCHEMA, re.S).group(0)
+            # Copy only columns the current definition still has (v1 photos had is_low_res).
+            cols = ", ".join(c for c in _table_columns(conn, table) if c in _ddl_columns(ddl))
             script += [
                 ddl.replace(f"CREATE TABLE IF NOT EXISTS {table} (", f"CREATE TABLE {table}__v2 ("),
-                f"INSERT INTO {table}__v2 SELECT * FROM {table};",
+                f"INSERT INTO {table}__v2 ({cols}) SELECT {cols} FROM {table};",
             ]
         script += [f"DROP TABLE {t};" for t in NEVER_REUSED_ID_TABLES]
         script += [f"ALTER TABLE {t}__v2 RENAME TO {t};" for t in NEVER_REUSED_ID_TABLES]
@@ -177,3 +209,40 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
             raise RuntimeError(f"schema migration v1->v2 left {len(problems)} broken references")
     finally:
         conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+
+
+def _ddl_columns(ddl: str) -> set[str]:
+    body = ddl.split("(", 1)[1]
+    return {m.group(1) for m in re.finditer(r"^\s+([a-z_]+)\s+[A-Z]", body, re.M)}
+
+
+def _ensure_additive_columns(conn: sqlite3.Connection) -> None:
+    """Columns added to v4 after some databases were already upgraded to v4 (idempotent)."""
+    if "auto_best_photo_id" not in _table_columns(conn, "duplicate_groups"):
+        conn.execute("ALTER TABLE duplicate_groups ADD COLUMN auto_best_photo_id INTEGER")
+
+
+def _migrate_to_v4(conn: sqlite3.Connection) -> None:
+    """-> v4 (ADR-017/018): resolution is no longer a technical-quality signal.
+
+    - drop ``photos.is_low_res`` (the old 1-megapixel flag; print suitability is now derived from
+      width/height per print size, see app.printing.suitability),
+    - recompute ``quality_score`` from the stored measurements without the resolution component,
+    - ``review_labels`` is created by SCHEMA.
+    Duplicate-group "best" photos are refreshed by the app afterwards (app.ingest.pipeline).
+    """
+    from app.vision.quality.classical import combined_quality_score  # only needed for this one-off
+
+    if "is_low_res" in _table_columns(conn, "photos"):
+        conn.execute("ALTER TABLE photos DROP COLUMN is_low_res")
+    rows = conn.execute(
+        "SELECT id, sharpness, exposure_issue, contrast FROM photos WHERE sharpness IS NOT NULL AND contrast IS NOT NULL"
+    ).fetchall()
+    conn.executemany(
+        "UPDATE photos SET quality_score = ? WHERE id = ?",
+        [(combined_quality_score(r["sharpness"], r["exposure_issue"], r["contrast"]), r["id"]) for r in rows],
+    )

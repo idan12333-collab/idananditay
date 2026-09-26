@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import io
 import os
 import subprocess
@@ -9,15 +10,17 @@ import sys
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from app import __version__
 from app.core.instance import APP_NAME, BUILD_ID, process_id
-from app.db.repository import PHOTO_FILTERS, PHOTO_SORTS, Repository
+from app.db.repository import PHOTO_FILTERS, PHOTO_SORTS, REVIEW_REASONS, REVIEW_VERDICTS, Repository
 from app.ingest.imaging import HEIC_SUPPORTED, to_rgb
 from app.ingest.scanner import SUPPORTED_EXTENSIONS
+from app.printing.suitability import PrintPolicy, assess
+from app.vision.quality import classical
 
 router = APIRouter(prefix="/api")
 
@@ -44,7 +47,7 @@ def _repo(request: Request) -> Repository:
     return request.app.state.repo
 
 
-def _photo_out(p: dict) -> dict:
+def _photo_out(p: dict, policy: PrintPolicy) -> dict:
     p = dict(p)
     v = _media_version(p)
     p["thumbnail_url"] = f"/api/photos/{p['id']}/thumbnail?v={v}" if p.get("thumbnail_path") else None
@@ -55,8 +58,8 @@ def _photo_out(p: dict) -> dict:
         reasons.append("Best of duplicate group" if p.get("is_group_best") else "Duplicate — alternate")
     if p.get("is_blurry"):
         reasons.append("Blurry")
-    if p.get("is_low_res"):
-        reasons.append("Low resolution")
+    if p.get("width") and p.get("height") and policy.is_extremely_low(p["width"], p["height"]):
+        reasons.append("Extremely low resolution")  # the only resolution warning (ADR-017)
     if p.get("is_screenshot"):
         reasons.append("Screenshot")
     if p.get("exposure_issue"):
@@ -138,6 +141,18 @@ def delete_library(library_id: int, request: Request) -> dict:
             removed += 1
         except FileNotFoundError:
             pass
+    # Privacy: derived data must go with the library. Also sweep thumbnails no photo references any
+    # more (left by older versions, or by rescans of edited files) — but never while a scan is running,
+    # because a scan writes a thumbnail before its database row exists.
+    if not _repo(request).any_active_job():
+        referenced = _repo(request).referenced_thumbnails()
+        for f in thumbs_dir.rglob("*.jpg"):
+            if f.relative_to(thumbs_dir).as_posix() not in referenced:
+                try:
+                    f.unlink()
+                    removed += 1
+                except OSError:
+                    pass
     return {"deleted": True, "thumbnails_removed": removed}
 
 
@@ -155,7 +170,7 @@ def duplicate_groups(
     _get_library_or_404(request, library_id)
     groups, total = _repo(request).list_duplicate_groups(library_id, offset, limit)
     for g in groups:
-        g["members"] = [_photo_out(m) for m in g["members"]]
+        g["members"] = [_photo_out(m, _repo(request).print_policy) for m in g["members"]]
     return {"total": total, "offset": offset, "groups": groups}
 
 
@@ -189,7 +204,7 @@ def list_photos(
     if sort not in PHOTO_SORTS:
         raise HTTPException(400, f"Unknown sort. Use one of: {', '.join(PHOTO_SORTS)}")
     items, total = _repo(request).list_photos(library_id, filter, year, sort, offset, limit)
-    return {"total": total, "offset": offset, "items": [_photo_out(p) for p in items]}
+    return {"total": total, "offset": offset, "items": [_photo_out(p, _repo(request).print_policy) for p in items]}
 
 
 def _get_photo_or_404(request: Request, photo_id: int) -> dict:
@@ -201,13 +216,183 @@ def _get_photo_or_404(request: Request, photo_id: int) -> dict:
 
 @router.get("/photos/{photo_id}")
 def get_photo(photo_id: int, request: Request) -> dict:
-    p = _photo_out(_get_photo_or_404(request, photo_id))
+    """Everything the review viewer shows: metadata, automatic analysis, print suitability, human label."""
+    repo = _repo(request)
+    p = _photo_out(_get_photo_or_404(request, photo_id), repo.print_policy)
     p["duplicates"] = (
-        [_photo_out(m) for m in _repo(request).get_group_members(p["duplicate_group_id"]) if m["id"] != photo_id]
+        [_photo_out(m, repo.print_policy) for m in repo.get_group_members(p["duplicate_group_id"]) if m["id"] != photo_id]
         if p.get("duplicate_group_id")
         else []
     )
+    group = repo.get_duplicate_group(p["duplicate_group_id"]) if p.get("duplicate_group_id") else None
+    if group:
+        group["members"] = [_photo_out(m, repo.print_policy) for m in group["members"]]
+    p["duplicate_group"] = group  # the whole group incl. this photo, the kept one and the automatic choice
+    p["original_url"] = f"/api/photos/{photo_id}/original?v={_media_version(p)}" if p.get("status") == "ok" else None
+    p["print"] = assess(p.get("width"), p.get("height"), repo.print_policy)
+    p["analysis"] = _analysis(p, request.app.state.settings.blur_threshold)
+    ext_format = _EXT_FORMAT.get(Path(p["source_path"]).suffix.lower())
+    p["extension_matches_format"] = ext_format is None or p.get("format") is None or ext_format == p["format"]
+    p["review"] = repo.get_review(p.get("content_hash"))
     return p
+
+
+_EXT_FORMAT = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP", ".heic": "HEIF", ".heif": "HEIF"}
+
+
+def _analysis(p: dict, blur_threshold: float) -> dict | None:
+    """Automatic measurements next to the rules applied to them, so a reviewer can judge each flag."""
+    if p.get("sharpness") is None:
+        return None
+    return {
+        "analyzer": classical.ClassicalQualityAnalyzer.name,
+        "sharpness": {"value": p["sharpness"], "blur_threshold": blur_threshold, "is_blurry": bool(p["is_blurry"])},
+        "exposure": {
+            "brightness": p["brightness"],
+            "dark_fraction": p["dark_fraction"],
+            "bright_fraction": p["bright_fraction"],
+            "issue": p["exposure_issue"],
+            "rules": {
+                "underexposed": f"brightness < {classical.UNDEREXPOSED_MEAN} "
+                                f"or dark > {classical.UNDEREXPOSED_DARK_FRACTION:.0%}",
+                "overexposed": f"brightness > {classical.OVEREXPOSED_MEAN} "
+                               f"or bright > {classical.OVEREXPOSED_BRIGHT_FRACTION:.0%}",
+            },
+        },
+        "contrast": p["contrast"],
+        "screenshot": {"is_screenshot": bool(p["is_screenshot"]), "reason": p.get("screenshot_reason")},
+        "quality": {
+            "score": p["quality_score"],
+            "components": classical.quality_components(p["sharpness"], p["exposure_issue"], p["contrast"]),
+            "weights": classical.SCORE_WEIGHTS,
+        },
+    }
+
+
+def _auto_snapshot(p: dict, policy: PrintPolicy) -> dict:
+    """The automatic verdicts as they were when the human labeled the photo (for later evaluation)."""
+    in_group = bool(p.get("duplicate_group_id"))
+    return {
+        "analyzer": classical.ClassicalQualityAnalyzer.name,
+        "is_blurry": bool(p.get("is_blurry")),
+        "sharpness": p.get("sharpness"),
+        "exposure_issue": p.get("exposure_issue"),
+        "is_screenshot": bool(p.get("is_screenshot")),
+        "extreme_low_res": bool(p.get("width") and p.get("height") and policy.is_extremely_low(p["width"], p["height"])),
+        "width": p.get("width"),
+        "height": p.get("height"),
+        "quality_score": p.get("quality_score"),
+        "duplicate": ("best" if p.get("is_group_best") else "alternate") if in_group else None,
+        "print_policy": policy.to_dict(),
+    }
+
+
+class ReviewIn(BaseModel):
+    verdict: str
+    reasons: list[str] = []
+    note: str | None = None
+
+
+@router.put("/photos/{photo_id}/review")
+def set_review(photo_id: int, body: ReviewIn, request: Request) -> dict:
+    """Store a human label. Never touches the automatic analysis of the photo (ADR-018)."""
+    repo = _repo(request)
+    p = _get_photo_or_404(request, photo_id)
+    if p["status"] != "ok":
+        raise HTTPException(400, "Only analyzed photos can be reviewed")
+    if body.verdict not in REVIEW_VERDICTS:
+        raise HTTPException(400, f"verdict must be one of: {', '.join(REVIEW_VERDICTS)}")
+    unknown = sorted(set(body.reasons) - set(REVIEW_REASONS))
+    if unknown:
+        raise HTTPException(400, f"Unknown reasons {unknown}. Use: {', '.join(REVIEW_REASONS)}")
+    if body.note and len(body.note) > 2000:
+        raise HTTPException(400, "Note is too long")
+    return repo.set_review(p, body.verdict, body.reasons, body.note, _auto_snapshot(p, repo.print_policy))
+
+
+@router.delete("/photos/{photo_id}/review")
+def delete_review(photo_id: int, request: Request) -> dict:
+    p = _get_photo_or_404(request, photo_id)
+    return {"deleted": _repo(request).delete_review(p.get("content_hash"))}
+
+
+@router.get("/libraries/{library_id}/review/stats")
+def review_stats(library_id: int, request: Request) -> dict:
+    _get_library_or_404(request, library_id)
+    return _repo(request).review_stats(library_id)
+
+
+@router.get("/libraries/{library_id}/filter/summary")
+def filter_summary(library_id: int, request: Request) -> dict:
+    """What the automatic filter did (per reason) and what the human feedback changed."""
+    _get_library_or_404(request, library_id)
+    return _repo(request).filter_summary(library_id)
+
+
+def _no_scan_running(request: Request, library_id: int) -> None:
+    # Checked BEFORE storing a pick, so a refused request changes nothing.
+    if _repo(request).active_job(library_id):
+        raise HTTPException(409, "A scan is running for this library; try again when it finishes")
+
+
+def _regroup(request: Request, library_id: int) -> None:
+    from app.ingest.pipeline import IngestionPipeline
+
+    IngestionPipeline(request.app.state.settings, _repo(request)).update_duplicates(library_id)
+
+
+def _group_out(request: Request, photo_id: int) -> dict:
+    repo = _repo(request)
+    p = repo.get_photo(photo_id)
+    members = repo.get_group_members(p["duplicate_group_id"]) if p and p.get("duplicate_group_id") else []
+    group = repo.get_duplicate_group(p["duplicate_group_id"]) if p and p.get("duplicate_group_id") else None
+    return {"group_id": p.get("duplicate_group_id") if p else None,
+            "best_photo_id": group["best_photo_id"] if group else None,
+            "auto_best_photo_id": group["auto_best_photo_id"] if group else None,
+            "members": [_photo_out(m, repo.print_policy) for m in members]}
+
+
+@router.put("/photos/{photo_id}/keep")
+def keep_in_group(photo_id: int, request: Request) -> dict:
+    """The user chooses this photo as the one to keep in its duplicate group. Nothing is deleted."""
+    p = _get_photo_or_404(request, photo_id)
+    if not p.get("duplicate_group_id"):
+        raise HTTPException(400, "Photo is not in a duplicate group")
+    _no_scan_running(request, p["library_id"])
+    _repo(request).set_duplicate_pick(p["duplicate_group_id"], p)
+    _regroup(request, p["library_id"])
+    return _group_out(request, photo_id)
+
+
+@router.delete("/photos/{photo_id}/keep")
+def reset_group_pick(photo_id: int, request: Request) -> dict:
+    """Back to the automatic choice for this photo's duplicate group."""
+    p = _get_photo_or_404(request, photo_id)
+    if p.get("duplicate_group_id"):
+        _no_scan_running(request, p["library_id"])
+        _repo(request).clear_duplicate_picks(p["duplicate_group_id"])
+        _regroup(request, p["library_id"])
+    return _group_out(request, photo_id)
+
+
+@router.get("/libraries/{library_id}/review/export")
+def export_reviews(library_id: int, request: Request, format: str = "json"):
+    """The human-labeled evaluation set of this library (labels + current automatic analysis)."""
+    _get_library_or_404(request, library_id)
+    rows = _repo(request).export_reviews(library_id)
+    disposition = {"Content-Disposition": f'attachment; filename="review_labels_{library_id}.{format}"'}
+    if format == "json":
+        return JSONResponse(rows, headers=disposition)
+    if format != "csv":
+        raise HTTPException(400, "format must be json or csv")
+    buf = io.StringIO()
+    cols = [c for c in (rows[0] if rows else ["photo_id", "rel_path", "verdict", "reasons", "note"]) if c != "auto_snapshot"]
+    writer = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({**r, "reasons": ";".join(r["reasons"])})
+    # BOM so Excel opens Hebrew paths correctly.
+    return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8", headers=disposition)
 
 
 @router.get("/photos/{photo_id}/thumbnail")
@@ -239,6 +424,30 @@ def photo_preview(photo_id: int, request: Request, v: str | None = None):
         img.save(buf, "JPEG", quality=88)
     except Exception as exc:
         raise HTTPException(500, f"Cannot render preview: {type(exc).__name__}") from exc
+    return Response(buf.getvalue(), media_type="image/jpeg", headers=_media_headers(p, v))
+
+
+# Formats every browser can display as-is; others (HEIC) are converted for viewing.
+_BROWSER_FORMATS = {"JPEG", "PNG", "WEBP", "GIF"}
+
+
+@router.get("/photos/{photo_id}/original")
+def photo_original(photo_id: int, request: Request, v: str | None = None):
+    """The original at full resolution, for judging sharpness at 100% (read-only)."""
+    p = _get_photo_or_404(request, photo_id)
+    src = Path(p["source_path"])
+    if p["status"] != "ok" or not src.is_file():
+        raise HTTPException(404, "Original not available")
+    if p.get("format") in _BROWSER_FORMATS and p.get("mime_type"):
+        return FileResponse(src, media_type=p["mime_type"], headers=_media_headers(p, v))
+    try:
+        with Image.open(src) as im:
+            im.load()
+            img = to_rgb(ImageOps.exif_transpose(im) or im)
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=95)
+    except Exception as exc:
+        raise HTTPException(500, f"Cannot render original: {type(exc).__name__}") from exc
     return Response(buf.getvalue(), media_type="image/jpeg", headers=_media_headers(p, v))
 
 

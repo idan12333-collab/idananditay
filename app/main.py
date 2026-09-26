@@ -18,6 +18,7 @@ from app.core.instance import BUILD_ID, process_id
 from app.core.logging import configure_logging, get_logger, log_event
 from app.db.database import Database
 from app.db.repository import Repository
+from app.ingest.pipeline import refresh_duplicate_groups
 from app.services.jobs import JobManager
 
 WEB_DIR = Path(__file__).parent / "web" / "static"
@@ -29,8 +30,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging(settings)
     settings.ensure_dirs()
     db = Database(settings.db_path)
-    db.initialize()
-    repo = Repository(db)
+    migrated = db.initialize()
+    repo = Repository(db, settings.print_policy())
+    if 4 in migrated:  # quality scores / best-photo rule changed (ADR-017): refresh duplicate groups
+        refresh_duplicate_groups(settings, repo)
+        log_event(logger, "schema migrated", to=migrated)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

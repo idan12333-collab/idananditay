@@ -25,11 +25,11 @@ def test_blur_detection_separates_sharp_and_blurry():
     analyzer = ClassicalQualityAnalyzer(blur_threshold=40)
     sharp = scene(20)
     blurry = sharp.filter(ImageFilter.GaussianBlur(10))
-    r_sharp, r_blurry = analyzer.analyze(sharp, 1.4), analyzer.analyze(blurry, 1.4)
+    r_sharp, r_blurry = analyzer.analyze(sharp), analyzer.analyze(blurry)
     assert r_sharp.sharpness > 10 * r_blurry.sharpness
     assert not r_sharp.is_blurry and r_blurry.is_blurry
     assert r_sharp.quality_score > r_blurry.quality_score
-    assert set(r_sharp.components) == {"sharpness", "exposure", "contrast", "resolution"}
+    assert set(r_sharp.components) == {"sharpness", "exposure", "contrast"}
 
 
 def test_shallow_depth_of_field_is_not_blurry():
@@ -37,14 +37,14 @@ def test_shallow_depth_of_field_is_not_blurry():
     img = scene(21).filter(ImageFilter.GaussianBlur(10))
     subject = scene(22, size=(350, 250))
     img.paste(subject, (500, 380))
-    assert not ClassicalQualityAnalyzer(blur_threshold=40).analyze(img, 1.4).is_blurry
+    assert not ClassicalQualityAnalyzer(blur_threshold=40).analyze(img).is_blurry
 
 
 def test_dark_but_sharp_is_not_blurry():
     import numpy as np
 
     dark = Image.fromarray((np.asarray(scene(23), dtype=np.float32) * 0.08).astype(np.uint8))
-    report = ClassicalQualityAnalyzer(blur_threshold=40).analyze(dark, 1.4)
+    report = ClassicalQualityAnalyzer(blur_threshold=40).analyze(dark)
     assert report.exposure_issue == "underexposed" and not report.is_blurry
 
 
@@ -52,9 +52,9 @@ def test_exposure_flags():
     analyzer = ClassicalQualityAnalyzer()
     dark = Image.new("RGB", (400, 300), (5, 5, 5))
     bright = Image.new("RGB", (400, 300), (252, 252, 252))
-    assert analyzer.analyze(dark, 1).exposure_issue == "underexposed"
-    assert analyzer.analyze(bright, 1).exposure_issue == "overexposed"
-    assert analyzer.analyze(scene(3), 1).exposure_issue is None
+    assert analyzer.analyze(dark).exposure_issue == "underexposed"
+    assert analyzer.analyze(bright).exposure_issue == "overexposed"
+    assert analyzer.analyze(scene(3)).exposure_issue is None
 
 
 def test_detect_screenshot():

@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from app.db.database import Database
+from app.printing.suitability import PrintPolicy
 
 # Columns written by ingestion (everything except id/library_id/duplicate fields).
 PHOTO_INGEST_FIELDS: tuple[str, ...] = (
@@ -16,12 +17,43 @@ PHOTO_INGEST_FIELDS: tuple[str, ...] = (
     "capture_time", "capture_time_source", "tz_offset", "camera_make", "camera_model",
     "gps_lat", "gps_lon", "gps_alt",
     "sharpness", "brightness", "contrast", "dark_fraction", "bright_fraction", "exposure_issue",
-    "quality_score", "is_blurry", "is_low_res", "is_screenshot", "screenshot_reason",
+    "quality_score", "is_blurry", "is_screenshot", "screenshot_reason",
     "thumbnail_path", "indexed_at",
 )
 
 # Values used when an ingest record lacks a field (e.g. files that failed to decode).
-_FIELD_DEFAULTS: dict[str, Any] = {"is_blurry": 0, "is_low_res": 0, "is_screenshot": 0}
+_FIELD_DEFAULTS: dict[str, Any] = {"is_blurry": 0, "is_screenshot": 0}
+
+# The automatic filter's reasons (classical rules, not AI), as SQL over `photos`. A photo with any of
+# them is "filtered" by the automatic analysis — never deleted or hidden: it stays one click away and
+# a human label overrides the decision (ADR-018). {long_px}/{short_px} come from the PrintPolicy
+# (ADR-017): "extremely low resolution" = cannot fill the smallest slot at acceptable PPI.
+AUTO_FLAGS: dict[str, str] = {
+    "blurry": "is_blurry = 1",
+    "exposure": "exposure_issue IS NOT NULL",
+    "screenshot": "is_screenshot = 1",
+    "extreme_low_res": "(MAX(width, height) < {long_px} OR MIN(width, height) < {short_px})",
+    "duplicate": "(duplicate_group_id IS NOT NULL AND is_group_best = 0)",
+}
+_ANY_AUTO_FLAG = "(" + " OR ".join(AUTO_FLAGS.values()) + ")"
+_LABEL = "(SELECT r.verdict FROM review_labels r WHERE r.content_hash = photos.content_hash)"
+# The filter's effective decision (ADR-018). Two independent parts:
+# 1. Duplicates: in each group exactly one copy stays (automatic choice or the user's pick); a human
+#    label never changes that — another copy is kept only by picking it in the duplicates view.
+# 2. Technical reasons (screenshot, quality, exposure): a "good" label overrides all of them,
+#    "bad" removes the photo even without a reason. COALESCE keeps unlabeled photos out of NULL logic.
+_DUP_ALT = AUTO_FLAGS["duplicate"]
+_ANY_TECH = "(" + " OR ".join(v for k, v in AUTO_FLAGS.items() if k != "duplicate") + ")"
+_LV = f"COALESCE({_LABEL}, '')"
+_FILTERED = f"({_DUP_ALT} OR {_LV} = 'bad' OR ({_LV} <> 'good' AND {_ANY_TECH}))"
+# Each filtered photo is shown under ONE primary reason; NULL for kept photos.
+PRIMARY_REASONS = ("duplicate", "screenshot", "low_quality", "exposure", "manual")
+_PRIMARY = (
+    f"(CASE WHEN {_DUP_ALT} THEN 'duplicate' WHEN {_LV} = 'good' THEN NULL "
+    f"WHEN {AUTO_FLAGS['screenshot']} THEN 'screenshot' "
+    f"WHEN ({AUTO_FLAGS['blurry']} OR {AUTO_FLAGS['extreme_low_res']}) THEN 'low_quality' "
+    f"WHEN {AUTO_FLAGS['exposure']} THEN 'exposure' WHEN {_LV} = 'bad' THEN 'manual' END)"
+)
 
 # Named filters for the gallery. Keys are part of the public API.
 PHOTO_FILTERS: dict[str, str] = {
@@ -29,14 +61,38 @@ PHOTO_FILTERS: dict[str, str] = {
     "unique": "status = 'ok' AND (duplicate_group_id IS NULL OR is_group_best = 1)",
     "duplicates": "status = 'ok' AND duplicate_group_id IS NOT NULL AND is_group_best = 0",
     "blurry": "status = 'ok' AND is_blurry = 1",
-    "low_res": "status = 'ok' AND is_low_res = 1",
+    "extreme_low_res": f"status = 'ok' AND {AUTO_FLAGS['extreme_low_res']}",
     "screenshots": "status = 'ok' AND is_screenshot = 1",
     "exposure": "status = 'ok' AND exposure_issue IS NOT NULL",
     "no_date": "status = 'ok' AND (capture_time IS NULL OR capture_time_source = 'file_mtime')",
     "gps": "status = 'ok' AND gps_lat IS NOT NULL",
     "errors": "status = 'error'",
     "missing": "status = 'missing'",
+    # Human review (ADR-018)
+    "unreviewed": f"status = 'ok' AND {_LABEL} IS NULL",
+    "review_good": f"status = 'ok' AND {_LABEL} = 'good'",
+    "review_bad": f"status = 'ok' AND {_LABEL} = 'bad'",
+    # Automatic analysis and human disagree: flagged but labeled good, or unflagged but labeled bad.
+    "review_disagree": f"status = 'ok' AND (({_ANY_AUTO_FLAG} AND {_LABEL} = 'good') "
+                       f"OR (NOT {_ANY_AUTO_FLAG} AND {_LABEL} = 'bad'))",
+    # The filter's effective decision: the human label wins; otherwise the automatic reasons decide.
+    # COALESCE: an unlabeled photo must compare as '' (not NULL), or NOT(...) would drop it from both lists.
+    "filtered": f"status = 'ok' AND {_FILTERED}",
+    "kept": f"status = 'ok' AND NOT {_FILTERED}",
+    "auto_filtered": f"status = 'ok' AND {_ANY_AUTO_FLAG}",
+    "auto_kept": f"status = 'ok' AND NOT {_ANY_AUTO_FLAG}",
+    # Photos whose outcome the user changed (restored despite a technical reason, or removed without one).
+    "changes": f"status = 'ok' AND (({_LV} = 'good' AND {_ANY_TECH} AND NOT {_DUP_ALT}) "
+               f"OR ({_LV} = 'bad' AND NOT ({_DUP_ALT} OR {_ANY_TECH})))",
+    **{f"reason_{r}": f"status = 'ok' AND {_PRIMARY} = '{r}'" for r in PRIMARY_REASONS},
 }
+
+REVIEW_VERDICTS = ("good", "bad")
+# Optional reason tags a reviewer can attach. Tags that correspond to an automatic flag are used to
+# measure that flag's agreement with the human reviewer.
+REVIEW_REASONS = ("blurry", "exposure", "low_res", "screenshot", "duplicate", "not_a_photo", "other")
+FLAG_REASON = {"blurry": "blurry", "exposure": "exposure", "screenshot": "screenshot", "extreme_low_res": "low_res",
+               "duplicate": "duplicate"}
 
 PHOTO_SORTS: dict[str, str] = {
     "date": "capture_time IS NULL, capture_time, id",
@@ -55,8 +111,15 @@ def _row(r) -> dict[str, Any] | None:
 
 
 class Repository:
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, print_policy: PrintPolicy | None = None):
         self.db = db
+        self.print_policy = print_policy or PrintPolicy()
+        long_px, short_px = self.print_policy.extreme_low_res_pixels()
+        self._sql_params = {"long_px": long_px, "short_px": short_px}
+
+    def _sql(self, template: str) -> str:
+        """Fill policy numbers (ints computed by us, never user input) into a filter template."""
+        return template.format(**self._sql_params)
 
     # ---------------------------------------------------------------- libraries
     def create_library(self, root_path: str, name: str) -> dict:
@@ -98,6 +161,15 @@ class Repository:
             c.execute("DELETE FROM duplicate_groups WHERE library_id = ?", (library_id,))
             c.execute("DELETE FROM jobs WHERE library_id = ?", (library_id,))
             c.execute("DELETE FROM libraries WHERE id = ?", (library_id,))
+            # Review labels are personal derived data too: drop those no remaining photo refers to.
+            c.execute(
+                "DELETE FROM review_labels WHERE content_hash NOT IN "
+                "(SELECT content_hash FROM photos WHERE content_hash IS NOT NULL)"
+            )
+            c.execute(
+                "DELETE FROM duplicate_picks WHERE content_hash NOT IN "
+                "(SELECT content_hash FROM photos WHERE content_hash IS NOT NULL)"
+            )
             still_used = {
                 r[0]
                 for r in c.execute("SELECT DISTINCT thumbnail_path FROM photos WHERE thumbnail_path IS NOT NULL")
@@ -163,7 +235,7 @@ class Repository:
             raise ValueError(f"unknown filter: {filter_name}")
         if sort not in PHOTO_SORTS:
             raise ValueError(f"unknown sort: {sort}")
-        where = f"library_id = ? AND {PHOTO_FILTERS[filter_name]}"
+        where = f"library_id = ? AND {self._sql(PHOTO_FILTERS[filter_name])}"
         params: list[Any] = [library_id]
         if year is not None:
             where += " AND substr(capture_time, 1, 4) = ?"
@@ -171,7 +243,8 @@ class Repository:
         with self.db.connect() as c:
             total = c.execute(f"SELECT COUNT(*) FROM photos WHERE {where}", params).fetchone()[0]
             rows = c.execute(
-                f"SELECT * FROM photos WHERE {where} ORDER BY {PHOTO_SORTS[sort]} LIMIT ? OFFSET ?",
+                f"SELECT *, {_LABEL} AS review_verdict FROM photos WHERE {where} "
+                f"ORDER BY {PHOTO_SORTS[sort]} LIMIT ? OFFSET ?",
                 [*params, limit, offset],
             ).fetchall()
         return [dict(r) for r in rows], total
@@ -195,8 +268,9 @@ class Repository:
             c.execute("DELETE FROM duplicate_groups WHERE library_id = ?", (library_id,))
             for g in groups:
                 cur = c.execute(
-                    "INSERT INTO duplicate_groups(library_id, kind, best_photo_id, size) VALUES(?, ?, ?, ?)",
-                    (library_id, g.kind, g.best_id, len(g.member_ids)),
+                    "INSERT INTO duplicate_groups(library_id, kind, best_photo_id, auto_best_photo_id, size) "
+                    "VALUES(?, ?, ?, ?, ?)",
+                    (library_id, g.kind, g.best_id, g.auto_best_id or g.best_id, len(g.member_ids)),
                 )
                 gid = cur.lastrowid
                 c.executemany(
@@ -220,18 +294,25 @@ class Repository:
                 g["members"] = [
                     dict(r)
                     for r in c.execute(
-                        "SELECT * FROM photos WHERE duplicate_group_id = ? ORDER BY is_group_best DESC, id",
+                        f"SELECT *, {_LABEL} AS review_verdict FROM photos WHERE duplicate_group_id = ? ORDER BY is_group_best DESC, id",
                         (g["id"],),
                     )
                 ]
         return groups, total
+
+    def get_duplicate_group(self, group_id: int) -> dict | None:
+        with self.db.connect() as c:
+            g = _row(c.execute("SELECT * FROM duplicate_groups WHERE id = ?", (group_id,)).fetchone())
+        if g:
+            g["members"] = self.get_group_members(group_id)
+        return g
 
     def get_group_members(self, group_id: int) -> list[dict]:
         with self.db.connect() as c:
             return [
                 dict(r)
                 for r in c.execute(
-                    "SELECT * FROM photos WHERE duplicate_group_id = ? ORDER BY is_group_best DESC, id", (group_id,)
+                    f"SELECT *, {_LABEL} AS review_verdict FROM photos WHERE duplicate_group_id = ? ORDER BY is_group_best DESC, id", (group_id,)
                 )
             ]
 
@@ -246,7 +327,8 @@ class Repository:
                       COALESCE(SUM(status = 'error'), 0)                           AS errors,
                       COALESCE(SUM(status = 'missing'), 0)                         AS missing,
                       COALESCE(SUM(status = 'ok' AND is_blurry = 1), 0)            AS blurry,
-                      COALESCE(SUM(status = 'ok' AND is_low_res = 1), 0)           AS low_res,
+                      COALESCE(SUM(status = 'ok' AND {extreme_low_res}), 0)        AS extreme_low_res,
+                      COALESCE(SUM(status = 'ok' AND {label} IS NOT NULL), 0)      AS reviewed,
                       COALESCE(SUM(status = 'ok' AND is_screenshot = 1), 0)        AS screenshots,
                       COALESCE(SUM(status = 'ok' AND exposure_issue IS NOT NULL), 0) AS exposure_issues,
                       COALESCE(SUM(status = 'ok' AND gps_lat IS NOT NULL), 0)      AS with_gps,
@@ -260,7 +342,7 @@ class Repository:
                       MIN(CASE WHEN status = 'ok' THEN capture_time END)           AS earliest,
                       MAX(CASE WHEN status = 'ok' THEN capture_time END)           AS latest
                     FROM photos WHERE library_id = ?
-                    """,
+                    """.format(extreme_low_res=self._sql(AUTO_FLAGS["extreme_low_res"]), label=_LABEL),
                     (library_id,),
                 ).fetchone()
             )
@@ -283,6 +365,167 @@ class Repository:
             round(100.0 * s["redundant_duplicates"] / s["indexed"], 1) if s["indexed"] else 0.0
         )
         return s
+
+    # ------------------------------------------------------------ human review
+    # Labels live in `review_labels` (ADR-018) and never modify the automatic analysis in `photos`.
+    def get_review(self, content_hash: str | None) -> dict | None:
+        if not content_hash:
+            return None
+        with self.db.connect() as c:
+            return _decode_review(
+                _row(c.execute("SELECT * FROM review_labels WHERE content_hash = ?", (content_hash,)).fetchone())
+            )
+
+    def set_review(
+        self,
+        photo: dict,
+        verdict: str,
+        reasons: Sequence[str] = (),
+        note: str | None = None,
+        auto_snapshot: dict | None = None,
+    ) -> dict:
+        if verdict not in REVIEW_VERDICTS:
+            raise ValueError(f"verdict must be one of {REVIEW_VERDICTS}")
+        unknown = set(reasons) - set(REVIEW_REASONS)
+        if unknown:
+            raise ValueError(f"unknown reasons: {sorted(unknown)}")
+        if not photo.get("content_hash"):
+            raise ValueError("photo has no content hash (not analyzed)")
+        now = now_iso()
+        with self.db.connect() as c:
+            c.execute(
+                "INSERT INTO review_labels(content_hash, verdict, reasons, note, photo_id, auto_snapshot, "
+                "created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(content_hash) DO UPDATE SET verdict = excluded.verdict, reasons = excluded.reasons, "
+                "note = excluded.note, photo_id = excluded.photo_id, auto_snapshot = excluded.auto_snapshot, "
+                "updated_at = excluded.updated_at",
+                (
+                    photo["content_hash"], verdict, json.dumps(sorted(set(reasons))), (note or "").strip() or None,
+                    photo["id"], json.dumps(auto_snapshot or {}, ensure_ascii=False), now, now,
+                ),
+            )
+        return self.get_review(photo["content_hash"])  # type: ignore[return-value]
+
+    def delete_review(self, content_hash: str | None) -> bool:
+        if not content_hash:
+            return False
+        with self.db.connect() as c:
+            return c.execute("DELETE FROM review_labels WHERE content_hash = ?", (content_hash,)).rowcount > 0
+
+    def review_stats(self, library_id: int) -> dict:
+        """How well each automatic flag agrees with the human reviewer, on reviewed photos only.
+
+        Per flag: of the reviewed photos the flag marked, how many the human called bad
+        (``flagged_bad``, i.e. the flag was right) or good (``flagged_good``, a false alarm); and
+        how many unflagged reviewed photos the human called bad for that same reason (``missed``).
+        Each photo counts once even if identical copies exist.
+        """
+        base = (
+            "SELECT p.*, r.verdict, r.reasons FROM photos p JOIN review_labels r ON r.content_hash = p.content_hash "
+            "WHERE p.library_id = ? AND p.status = 'ok' "
+            "AND p.id = (SELECT MIN(q.id) FROM photos q WHERE q.library_id = p.library_id "
+            "AND q.status = 'ok' AND q.content_hash = p.content_hash)"
+        )
+        flag_cols = ", ".join(f"{self._sql(sql)} AS f_{k}" for k, sql in AUTO_FLAGS.items())
+        with self.db.connect() as c:
+            rows = [dict(r) for r in c.execute(f"SELECT b.verdict, b.reasons, {flag_cols} FROM ({base}) b", (library_id,))]
+            unreviewed = c.execute(
+                self._sql(f"SELECT COUNT(*) FROM photos WHERE library_id = ? AND {PHOTO_FILTERS['unreviewed']}"),
+                (library_id,),
+            ).fetchone()[0]
+        out: dict[str, Any] = {
+            "reviewed": len(rows),
+            "unreviewed": unreviewed,
+            "good": sum(r["verdict"] == "good" for r in rows),
+            "bad": sum(r["verdict"] == "bad" for r in rows),
+            "flags": {},
+        }
+        for flag, reason in FLAG_REASON.items():
+            flagged = [r for r in rows if r[f"f_{flag}"]]
+            unflagged = [r for r in rows if not r[f"f_{flag}"]]
+            fb = sum(r["verdict"] == "bad" for r in flagged)
+            out["flags"][flag] = {
+                "flagged_reviewed": len(flagged),
+                "flagged_bad": fb,
+                "flagged_good": len(flagged) - fb,
+                "flag_precision": round(fb / len(flagged), 3) if flagged else None,
+                "missed": sum(r["verdict"] == "bad" and reason in json.loads(r["reasons"]) for r in unflagged),
+            }
+        any_flag = [any(r[f"f_{k}"] for k in AUTO_FLAGS) for r in rows]
+        out["agree"] = sum(f == (r["verdict"] == "bad") for f, r in zip(any_flag, rows))
+        out["disagree"] = len(rows) - out["agree"]
+        return out
+
+    def filter_summary(self, library_id: int) -> dict:
+        """What the automatic filter did, per reason, and how the human feedback changed it (ADR-018)."""
+        count = lambda c, name: c.execute(  # noqa: E731
+            f"SELECT COUNT(*) FROM photos WHERE library_id = ? AND {self._sql(PHOTO_FILTERS[name])}", (library_id,)
+        ).fetchone()[0]
+        with self.db.connect() as c:
+            # One primary reason per filtered photo, so the tabs add up to `filtered`.
+            by_reason = {r: count(c, f"reason_{r}") for r in PRIMARY_REASONS}
+            out = {name: count(c, name) for name in ("all", "auto_filtered", "auto_kept", "filtered", "kept")}
+            restored = c.execute(
+                f"SELECT COUNT(*) FROM photos WHERE library_id = ? AND status = 'ok' "
+                f"AND {self._sql(_ANY_TECH)} AND NOT {_DUP_ALT} AND {_LV} = 'good'", (library_id,)).fetchone()[0]
+            should_filter = c.execute(
+                f"SELECT COUNT(*) FROM photos WHERE library_id = ? AND status = 'ok' "
+                f"AND NOT ({_DUP_ALT} OR {self._sql(_ANY_TECH)}) AND {_LV} = 'bad'", (library_id,)).fetchone()[0]
+            changed_picks = c.execute(
+                "SELECT COUNT(*) FROM duplicate_groups WHERE library_id = ? AND auto_best_photo_id IS NOT NULL "
+                "AND best_photo_id != auto_best_photo_id", (library_id,)).fetchone()[0]
+            groups = c.execute("SELECT COUNT(*) FROM duplicate_groups WHERE library_id = ?", (library_id,)).fetchone()[0]
+        return {
+            "total": out["all"],
+            "auto_filtered": out["auto_filtered"],
+            "auto_kept": out["auto_kept"],
+            "filtered": out["filtered"],
+            "kept": out["kept"],
+            "by_reason": by_reason,
+            "duplicate_groups": groups,
+            "feedback": {"restored": restored, "should_filter": should_filter, "duplicate_picks_changed": changed_picks},
+        }
+
+    # --------------------------------------------------------- duplicate picks
+    def get_duplicate_picks(self) -> dict[str, str]:
+        with self.db.connect() as c:
+            return {r[0]: r[1] for r in c.execute("SELECT content_hash, created_at FROM duplicate_picks")}
+
+    def set_duplicate_pick(self, group_id: int, photo: dict) -> None:
+        """The user keeps ``photo`` as the group's best; replaces any earlier pick in the same group."""
+        members = self.get_group_members(group_id)
+        with self.db.connect() as c:
+            c.executemany("DELETE FROM duplicate_picks WHERE content_hash = ?",
+                          [(m["content_hash"],) for m in members if m.get("content_hash")])
+            c.execute("INSERT INTO duplicate_picks(content_hash, created_at) VALUES(?, ?)",
+                      (photo["content_hash"], datetime.now().isoformat(timespec="microseconds")))
+
+    def clear_duplicate_picks(self, group_id: int) -> None:
+        members = self.get_group_members(group_id)
+        with self.db.connect() as c:
+            c.executemany("DELETE FROM duplicate_picks WHERE content_hash = ?",
+                          [(m["content_hash"],) for m in members if m.get("content_hash")])
+
+    def export_reviews(self, library_id: int) -> list[dict]:
+        """Labels of this library joined with the current automatic analysis (evaluation set)."""
+        with self.db.connect() as c:
+            rows = c.execute(
+                "SELECT p.id AS photo_id, p.rel_path, p.content_hash, p.width, p.height, p.sharpness, "
+                "p.brightness, p.contrast, p.dark_fraction, p.bright_fraction, p.exposure_issue, p.is_blurry, "
+                "p.is_screenshot, p.screenshot_reason, p.quality_score, p.duplicate_group_id, p.is_group_best, "
+                "r.verdict, r.reasons, r.note, r.auto_snapshot, r.created_at, r.updated_at "
+                "FROM photos p JOIN review_labels r ON r.content_hash = p.content_hash "
+                "WHERE p.library_id = ? AND p.status = 'ok' ORDER BY p.rel_path",
+                (library_id,),
+            ).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["reasons"] = json.loads(d["reasons"] or "[]")
+            d["auto_snapshot"] = json.loads(d["auto_snapshot"] or "{}")
+            d["extreme_low_res"] = self.print_policy.is_extremely_low(d["width"] or 0, d["height"] or 0)
+            out.append(d)
+        return out
 
     # --------------------------------------------------------------------- jobs
     def create_job(self, job_id: str, library_id: int, kind: str) -> dict:
@@ -327,6 +570,14 @@ class Repository:
             )
         return _decode_job(job)
 
+    def any_active_job(self) -> bool:
+        with self.db.connect() as c:
+            return c.execute("SELECT 1 FROM jobs WHERE status IN ('queued', 'running') LIMIT 1").fetchone() is not None
+
+    def referenced_thumbnails(self) -> set[str]:
+        with self.db.connect() as c:
+            return {r[0] for r in c.execute("SELECT DISTINCT thumbnail_path FROM photos WHERE thumbnail_path IS NOT NULL")}
+
     def interrupt_stale_jobs(self) -> int:
         with self.db.connect() as c:
             cur = c.execute(
@@ -343,3 +594,11 @@ def _decode_job(job: dict | None) -> dict | None:
     raw = job.pop("stats_json", None)
     job["stats"] = json.loads(raw) if raw else None
     return job
+
+
+def _decode_review(label: dict | None) -> dict | None:
+    if label is None:
+        return None
+    label["reasons"] = json.loads(label.get("reasons") or "[]")
+    label["auto_snapshot"] = json.loads(label.get("auto_snapshot") or "{}")
+    return label

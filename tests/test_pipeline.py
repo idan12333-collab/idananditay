@@ -43,7 +43,7 @@ def test_full_ingest(settings, repo, library):
     assert rows["IMG_20210304_101112.jpg"]["capture_time_source"] == "filename"
     assert rows["blurry.jpg"]["is_blurry"] == 1
     assert rows["a.jpg"]["is_blurry"] == 0
-    assert rows["tiny.jpg"]["is_low_res"] == 1
+    assert repo.print_policy.is_extremely_low(rows["tiny.jpg"]["width"], rows["tiny.jpg"]["height"])
     assert rows["Screenshot_2023-01-01.png"]["is_screenshot"] == 1
     assert rows["dark.jpg"]["exposure_issue"] == "underexposed"
     assert rows["corrupt.jpg"]["status"] == "error"
