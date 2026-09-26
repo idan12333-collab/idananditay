@@ -10,6 +10,9 @@ Statuses:
 - REPLACED: replaced before completing its role.
 - FAILED: the work couldn't safely continue.
 
+## Onboarding step 0: working folder (owner, 2026-09-26)
+Before the interview, the PM checks the new session's cwd with list_sessions. It must be the project folder `C:\Users\idan1\OneDrive\שולחן העבודה\קלוד\אלבום`. If it isn't, the PM's first message tells the worker to switch to that folder itself (the change_directory tool). If the worker can't switch, the PM tells the owner the single action: "reopen the session in the project folder". The PM also files the new session into the right sidebar group. The owner doesn't need to remember any of this.
+
 ## Onboarding rule (owner, 2026-09-26)
 Before a new worker gets implementation responsibility, it must answer, in one concise exchange:
 1. What the task is.
@@ -36,6 +39,50 @@ Standing efficiency rules for every worker:
 ## New-session rule (owner, 2026-09-26)
 When a new worker is needed, the PM tells the owner ONLY the exact session name to create (e.g. "Dev Reload Worker #1"). Once the owner confirms it's open, the PM handles everything else over inter-session messaging: onboarding, the interview, the brief and coordination. The owner never prepares prompts or transfers context.
 
+## Permanent role: Product & Efficiency Advisor (owner, 2026-09-26; autonomous PM↔Advisor pair)
+- Roles:
+  - Owner = product decisions.
+  - PM = execution, coordination, roadmap control, workers, Git, blockers, delivery.
+  - Advisor = an independent high-level challenge: product/business/workflow/efficiency ideas, risks/opportunities.
+  - Workers = implementation.
+- The Advisor NEVER implements, never assigns workers, never commits product code, never changes strategy or milestone order, and never makes irreversible decisions. The only file it may write is **IDEAS.md**.
+- **Activation (event-driven, no polling):** the PM wakes the Advisor with a message containing a concise snapshot reference at these triggers:
+  - milestone completed;
+  - ~3+ meaningful commits since the last review;
+  - a major owner test/feedback round;
+  - a major bug/root cause or recurring friction;
+  - a worker replacement that exposes an efficiency issue;
+  - a material roadmap change;
+  - before starting a new milestone;
+  - a new daily summary with meaningful changes;
+  - whenever the PM wants a second opinion.
+
+  While the Advisor is awake, it may contact the PM on its own. Technical limit: an idle session can't wake itself, so "autonomous" means the PM triggers it automatically. The owner never has to.
+- Snapshot only: ROADMAP, ACTIVE_WORK, MEMORY, DECISIONS, PROJECT_SPEC, WORKERS, IDEAS, `git log --oneline -15`, `git status --short`, the latest daily summary. No worker transcripts without a specific reason.
+- Core questions:
+  - manual work to automate;
+  - accepted friction;
+  - customer-experience gains;
+  - ignored business risk;
+  - expensive future problems to prevent now;
+  - cheap validation before a big feature;
+  - drift from the vision;
+  - a simpler or more scalable way.
+- Output: 1–5 strong ideas, each with: idea / problem / value H-M-L / effort S-M-L / timing / roadmap impact / owner / new worker needed? No duplicates of IDEAS.md entries.
+- The Advisor may challenge the PM directly (overcomplication, inefficiency, premature features, missing capabilities, drift). The PM evaluates suggestions against the milestone, risk, effort, dependencies, usage and the vision, and doesn't accept them automatically.
+- Joint classification: DO NOW / ATTACH TO CURRENT WORK / ROADMAP / BACKLOG / REJECT.
+- **The owner is involved ONLY for product-owner decisions:** major scope, roadmap reorder, meaningful architecture, privacy/data-sharing/external services, business model, significant cost, removal of a planned capability, other strategic tradeoffs. Then the PM sends a short Hebrew decision brief: the proposal / why / the Advisor's position / the PM's position / cost-risk / options with a recommendation / the decision needed. Everything routine is handled without the owner.
+- Efficiency: concise messages, no chatter, idle between reviews.
+
+## Session archive rule (owner, 2026-09-26)
+- WORKERS.md is the canonical history. The Claude sidebar is only for visual organization.
+- The PM moves sessions itself using the sidebar tools. The groups:
+  - "אלבום · פעילים" (current PM, current Advisor, active workers);
+  - "אלבום · ממתינים" (WAITING workers);
+  - "אלבום · הסתיימו (ארכיון)" (DONE / RETIRED / REPLACED / FAILED).
+- On every status change: update WORKERS.md (final status, end commit, replacement, handoff) → move the session to the right group. Replacements keep their numbering (#1 archived → #2 active).
+- If the move tool is unavailable, the PM tells the owner the exact single UI action.
+
 ## Registry
 
 ### Project Manager #1
@@ -61,5 +108,12 @@ When a new worker is needed, the PM tells the owner ONLY the exact session name 
 - Lessons: 61 requests in 25 minutes, with screenshot-heavy self-checks; it became the largest usage consumer after the reset.
 
 ### Dev Reload Worker #1
-- Status: **PLANNED**. The owner opens the session after Quality #1 and Dashboard #1 have committed, and quota allows.
+- Session `local_189577cd-a15a-49da-bdda-9894d42ec89f` (titled "#1 עובד רענון דשבורדים אוטומטי"). Status: **DONE**. Started: 2026-09-26 18:40. Ended: ~19:00. Start commit: `6a7a1eb`. End commit: `64d099a`. Passed its onboarding interview in one exchange. Lesson: on Windows the venv python.exe is a launcher; the process-tree kill + a per-launch dev_instance token were needed to avoid a stale server.
 - Scope: dev auto-reload for the app and the dashboard (ADR-020). The onboarding interview is required before any code.
+
+### Product & Efficiency Advisor #1
+- Session `local_3c7e1461-6729-4dfa-98a4-093b841f08c4` (titled "יועץ מוצר ויעילות #1"). Status: **WAITING** (idle). Started: 2026-09-26 ~19:05. Passed its onboarding interview in one exchange and confirmed it's an advisor, not an implementer. First review is scheduled after the quota reset (trigger 22:17).
+
+### אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead)
+- Status: **PLANNED**. Opens when the owner starts building the I-008 library (after Exclusions #1). The PM will then ask the owner to open a session with exactly this name.
+- Scope: owns curation quality + the evaluation methodology. Defines tests, compares approaches, measures, finds failure modes; coordinates implementation through the PM. Plan: see ACTIVE_WORK "Curation gate evidence" (AI-assisted ground truth, objective vs. subjective labels with confidence, a small label set, a 10% blind subset, local by default).

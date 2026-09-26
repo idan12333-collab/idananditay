@@ -4,6 +4,25 @@ Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · 
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
 Last updated: 2026-09-26 ~14:55 (PM).
 
+## >>> PM HANDOFF (18:35 on 2026-09-26): READ THIS FIRST, new PM <<<
+- Committed: `a9783bb` (Quality #1, DONE), `55b7761` (Dashboard #1, DONE), `6a7a1eb` (PM docs). Tree: only the uncommitted W2 hunks (database.py, repository.py, scanner.py, folder_browser.py).
+- Next, in order:
+  1. The owner opens "Project Manager #2" (fresh PM). It reads this file, WORKERS.md, MEMORY.md and ROADMAP.md, and takes over.
+  2. After the quota reset, the PM asks the owner to open "Dev Reload Worker #1" → onboarding interview → brief (W4 section below).
+  3. After Dev Reload is committed → resume Exclusions Worker #1 (re-read HEAD first; its SCHEMA_VERSION comment conflicts with the committed line "4 # v3 is reserved for ADR-016").
+- Commit approvals: when a worker asked the owner in its own chat, the owner must answer there. Relayed approvals are accepted by some workers and refused by others.
+- Efficiency: PM #1 became the largest consumer (56 requests / 17M cache-read in ~40 min), from reacting to idle notices + relays at 344k context. PM #2: ignore stale idle notices, batch state.json updates.
+- The dashboard state is in project_management/state.json (PM-written, git-ignored).
+
+## Scheduled triggers (standing rule: the PM schedules every known follow-up itself; the owner isn't the reminder system)
+| Trigger | Mechanism | Fires | Action | Must stay alive | If it fails |
+|---|---|---|---|---|---|
+| Quota reset | CronCreate one-shot `ff6d0cf7` in the PM #1 session | 2026-09-26 22:13 | Check usage → resume Exclusions #1 with the full brief + I-004 → update state → 2 lines to the owner | Claude app open, computer awake, PM #1 session open and idle | The trigger is lost; the owner writes anything to the PM, and the PM runs the same steps |
+| Advisor first review | CronCreate one-shot in the PM #1 session | 2026-09-26 22:17 | Wake Advisor #1 → ≤5 ideas → joint classification → only product-owner items go to the owner | Same as above | The owner writes to the PM, and the PM runs the review then |
+| Worker finishes / network error | The worker reports + a one-shot notify_when_idle | On idle | Verify → next step / resend "continue" | Same | The owner tells the PM that a worker looks stuck |
+| Exclusions #1 committed (M1 closes) | The PM handles the worker's report | On the report | Wake Advisor #1 for the M1 review; then propose the PM #2 handoff | Same | — |
+| PM handoff | The PM asks the owner to open "Project Manager #2" | After M1 closes | The new PM re-creates any pending cron triggers in its own session | — | Cron jobs are session-only: re-create them after a handoff |
+
 ## Snapshot
 - Branch `main`, no remote. HEAD = PM docs commit on top of `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets). Every commit up to HEAD has been validated by the owner.
 - Working tree: uncommitted changes from W1 (complete) and W2 (partial). Both touch `app/db/database.py` and `app/db/repository.py`. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
@@ -48,6 +67,50 @@ Last updated: 2026-09-26 ~14:55 (PM).
   - The PM doesn't react to idle notices when a worker reports on its own.
   - **Error recovery (owner-requested 2026-09-26):** the PM holds a one-shot idle subscription ONLY on workers that are actively implementing. When a notice arrives without a report from that worker, the PM checks the transcript tail. If the turn ended on an API/network error, the PM sends one "continue from where you stopped" message; if it fails again, the PM tells the owner. No polling. Limitation: if the internet or the Claude API is down for everyone, the PM can't react until it's back.
 
+## Process changes from Advisor review #1 (2026-09-26)
+- I-009 UI gate: before building any customer-facing screen, the worker sends the owner a one-sentence goal + a static mock. Wiring code starts only after the owner approves it.
+- I-011 (refined by the owner): use a separate branch/worktree when there's parallel work, possible overlap or a clear isolation need. A single worker on an isolated task works on main with no extra overhead.
+- Owner decisions (2026-09-26, after Advisor review #1):
+  - I-007 split into 7a Semantic Search POC (first; small, measurable, real photos) and 7b the age-progression person POC (a separate worker/task);
+  - I-008: a permanent evaluation library of 1–3k original photos with deliberate variety, growing to 5k/50k+;
+  - I-010: PM #2 + Advisor on a cheaper model as an experiment, with decision quality measured.
+  - I-012 APPROVED: research, an end-to-end UX comparison on the same real library (time, steps, quality, friction), not a feature list. I-013 APPROVED in principle, GATED on I-008. Metrics: time, cost, manual decisions, swaps, friction points, a ranked list of steps to automate.
+  - **Next order (owner, final):**
+    1. Exclusions #1 (M1 closes = the technical filter is stable enough to continue, NOT "photo selection solved").
+    2. The owner builds the I-008 library + fills `evaluation/queries_template.md` (6 query types). The אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead) opens at the start of this step.
+    3. Human ground truth (labels).
+    4. A baseline curation measurement of the current filter.
+    5. The 7a semantic-search POC, evaluated INSIDE the curation framework: does it improve curation?
+    6. I-012 research.
+    7. Advisor review.
+    8. I-013 concierge album.
+    9. The 7b people POC, and so on.
+    The Curation Quality Track stays open and high-priority until the gate evidence exists.
+- Tooling freeze until the I-007 spike runs (only I-002 is allowed, if it stays small).
+
+## Curation gate evidence (required before album generation depends on curation)
+1. The evaluation set is real: ≥1,000 original photos covering several years, people, pets, trips, events and junk types, fully owner-labeled. Part of it is held out and never used for tuning.
+2. False exclusion: the "definitely include" rate (target set from the baseline, expected to be very low) and **zero** lost "special moment" photos, measured at the candidate stage.
+3. Candidate-stage recall for "definitely + probably include" is high enough that ranking gets nearly everything the owner wants.
+4. Junk retention is measured, and trending down across rounds without hurting #2 and #3.
+5. Duplicates: agreement with the owner's preferred copy.
+6. Coverage of the requested people/events/years for 2–3 real album requests.
+7. Each round shows measurable improvement over the previous baseline, and the results hold on the held-out part.
+8. Owner blind review of the final selection for 2–3 real requests: acceptance rate plus the list of misses.
+9. Runtime per 1,000 photos is within the M7 benchmark budget (current ingest baseline: ~51 s / 1,000 photos on synthetic data; the curation budget gets set in the baseline round).
+10. Labels, per Advisor #1:
+   - Request-INDEPENDENT labels on the full set: junk / duplicate + preferred copy / special moment / keep-worthy / technically poor but important.
+   - Per-request relevance labels only for the 2–3 test requests.
+11. (Owner, 2026-09-26: NO second labeler for now.) Instead, **AI-assisted ground truth**: the AI proposes labels/ratings, the owner confirms or corrects them in the existing web UI, and ONLY the owner-confirmed result is saved as the human label. AI proposals are stored separately and are never treated as truth.
+   - אחראי בקרת איכות תמונות #1 must evaluate using the filter-review screen ("מה הסינון הציע?", review_labels) as the base for the labeling screen.
+   - Guards against anchoring: show a random ~10% subset WITHOUT the AI suggestion, and compare the owner's labels there; report the owner's correction rate on AI proposals.
+   - Owner refinements:
+     - Separate OBJECTIVE labels (duplicate, screenshot/document, technical quality) from SUBJECTIVE ones (special moment, keep-worthy). For subjective labels the AI shows a suggestion + confidence, never a verdict.
+     - Start with a SMALL set of critical labels only. No heavy tagging system up front: the goal is fast ground truth, not a labeling project.
+   - Privacy: the AI that proposes labels runs LOCALLY by default. Sending photos to any external AI/vision service needs a separate explicit owner decision (guardrail).
+12. Structural conservatism (ADR-021): verified by design.
+Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead) opens when the owner starts building the I-008 library (first deliverables: the eval plan, the library composition spec, the label schema, the query list template), then the baseline round on the current filter.
+
 ## Worker identity & onboarding (owner, 2026-09-26)
 - Permanent numbering per category (never reused) and the full history live in **WORKERS.md**. New workers pass a one-exchange onboarding interview + get the standing efficiency rules (see WORKERS.md) before they write any code. Final states: DONE / RETIRED / REPLACED / FAILED. Replacing a worker: final status → reason → handoff → next number → interview → then work.
 - Current mapping: W1 = Quality Worker #1, W2 = Exclusions Worker #1, W3 = Dashboard Worker #1, W4 = Dev Reload Worker #1 (planned), PM = Project Manager #1.
@@ -74,6 +137,13 @@ Last updated: 2026-09-26 ~14:55 (PM).
 - Owns: schema **v3** (the `library_exclusions` table, the `excluded` photo status) and **ADR-016**; `scanner.py`, `folder_browser.py`, `app/api/browse.py`, the exclusion code in `database.py`/`repository.py`; in `pipeline.py` only the scan/missing part of `IngestionPipeline.run()` plus `IngestSummary.excluded`; in `routes.py` only `LibraryCreate.exclude` + `create_library()` + `GET /api/exclusions`; in the UI only the folder-browser dialog, the section-1 card, a styles block appended at the end, and an optional exclusions stats tile.
 - Done (uncommitted): the scanner skip + path validation, schema-v3 DDL, repository methods, the video-extension list moved to the scanner.
 - Remaining: wiring into the pipeline, API, UI, tests, ADR-016, and docs.
+- **Attached (owner-approved I-004, 2026-09-26):** automatic DB backup before a schema-changing migration.
+  - Back up ONLY when a migration will change the schema, never on a normal startup.
+  - Retention: keep a bounded number, e.g. the last 5, and prune older ones.
+  - If the backup fails, the migration does NOT run (the app stops with a clear error).
+  - Log + document where the backup was saved and what happened.
+  - Automated test: a failed backup → migration not applied, schema version unchanged.
+  - If this expands W2's scope significantly, W2 stops and reports to the PM before continuing. The PM must include this in W2's resume message.
 - Resume condition: W1 committed and verified by the PM → the PM sends "continue" → W2 re-reads the git log, this file, and the shared files → finishes → full suite → owner validates manually → separate commit of W2's hunks.
 - Important: the owner DB goes straight to v4 without a v3 step. v3 must stay additive (`CREATE TABLE IF NOT EXISTS`). Any real data migration must key off table existence or use v5.
 

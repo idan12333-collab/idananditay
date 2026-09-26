@@ -237,3 +237,12 @@ small trees). Any code save restarts the server and cancels a running scan (dev 
 
 **Reversible?** Yes — delete `start_dev.bat` and `scripts/dev_supervisor.py`; the hooks are inert
 without the env vars.
+
+## ADR-021 — Technical flags demote, they don't exclude (curation safety)
+**Status:** Accepted (2026-09-26, PM; follows the owner's principle "falsely excluding a wanted photo is the costliest error").
+
+**Decision:** in the album/curation pipeline, technical signals (blur, exposure, low resolution, screenshot/document, near-duplicate non-keeper) only **lower a photo's rank or candidate priority**. Nothing is hard-excluded before ranking except unreadable/corrupt files and byte-identical duplicates (one copy kept). The filter-review screen still *suggests* removals, and user labels override everything. Relevance/significance signals (M2+) can promote a technically weak photo.
+
+**Why:** a hard technical cut can permanently hide important moments that later semantic/people signals would have rescued. Verified by the Curation Quality Track gate (false-exclusion measurements).
+
+**Tradeoff:** more candidates reach ranking (compute cost, and ranking must handle junk). **Changeable:** yes, but only with evaluation-set evidence.

@@ -15,6 +15,41 @@ Guardrails:
 
 **Scale targets:** a development benchmark of ~5,000 photos; a scale-validation benchmark of 50,000+ photos.
 
+## ⚠ Curation Quality Track: permanent, high-priority product risk (owner, 2026-09-26)
+Core question: given a large real library and an album request, does the system reliably select the photos a human would actually want?
+
+**Owner:** Curation & Evaluation Lead. Defines tests, compares approaches, measures results and finds failure modes. Coordinates implementation through the PM.
+
+**Principle:** falsely excluding a photo the user wants is the most expensive error. Early stages stay conservative: pass more candidates on to ranking rather than "cleaning" aggressively. Technical flaws alone must never remove important moments.
+
+**Evaluation set:** built from the I-008 original-photo library, with owner labels:
+- definitely / probably include, neutral, probably / definitely exclude;
+- duplicate + preferred copy;
+- technically poor but important;
+- screenshot/document;
+- special event / important moment.
+
+**Tracked failures:**
+- good photo wrongly excluded;
+- junk wrongly retained;
+- wrong duplicate chosen;
+- important moment missed;
+- too many similar photos;
+- insufficient event/person coverage;
+- irrelevant photo for the request.
+
+**Approach comparison:** for every candidate, record real-set quality, speed, compute/memory, commercial license, iPhone feasibility, privacy, replaceability and cost. Never choose by demo.
+
+**Evaluation rounds:** each round is compared against the previous baseline.
+1. Technical baseline (M1).
+2. Semantic relevance (M2).
+3. People/pets (M3).
+4. Events/place/time (M4).
+5. Combined curation (M5).
+6. Full album selection (M6).
+
+- [ ] **Gate: curation ready for album generation** (required before M6 depends on curation). The thresholds come from the baseline data, not invented up front. The evidence required is listed in ACTIVE_WORK.md, section "Curation gate evidence".
+
 ## Milestone 0 — Foundation ✅ (2026-09-26)
 - [x] Initialize repo and Python environment: Python 3.12 venv + `start.bat`; Git repo initialized (branch `main`).
 - [x] Create configuration system (`app/core/config.py`, pydantic-settings, `APP_*` env vars)
@@ -24,6 +59,7 @@ Guardrails:
 - [x] Create basic FastAPI health endpoint (`GET /api/health`)
 
 ## Milestone 1 — Photo ingestion & technical filtering (IN PROGRESS: core done, closing items open)
+*Definition of done: the technical-filtering implementation is stable enough to continue. It does NOT mean the photo-selection problem is solved; that's tracked by the Curation Quality Track.*
 Customer value: point the app at a library, and it's indexed safely; obvious technical rejects are suggested (never deleted); the user reviews and corrects the suggestions quickly.
 - [x] Scan folder recursively (skips hidden/system folders, Unicode/Hebrew paths)
 - [x] Support JPEG/PNG and practical HEIC handling (+ WebP; HEIC via pillow-heif = POC_ONLY license, see MODEL_REGISTRY)
