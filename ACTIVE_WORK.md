@@ -185,8 +185,8 @@ Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation
 - M2 → a W2 decision + clean tree + approval by the owner or Itay (acting owner).
 
 ## Reservations
-- Schema: v3 = W2 (uncommitted), v4 = W1 (committed). **Next free: v5.**
-- ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed), 021 = PM (technical flags demote, not exclude). **Next free: ADR-022.**
+- Schema: v3 = W2 (committed e806743), v4 = W1 (committed). **v5 RESERVED for curation_labels + ai_label_proposals (Curation Lead #1 spec; implemented by עובד תיוג #1). Next free: v6.**
+- ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed), 021 = PM (technical flags demote, not exclude), 022 = curation labels (reserved). **Next free: ADR-023.**
 
 ## Backlog (unassigned, not started)
 - Warn before scanning OneDrive cloud-only files (natural follow-up to W2; assign after W2).

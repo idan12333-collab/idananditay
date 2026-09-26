@@ -123,7 +123,7 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Session `local_3c7e1461-6729-4dfa-98a4-093b841f08c4` (titled "יועץ מוצר ויעילות #1"). Status: **WAITING** (idle). Started: 2026-09-26 ~19:05. Passed its onboarding interview in one exchange and confirmed it's an advisor, not an implementer. First review is scheduled after the quota reset (trigger 22:17).
 
 ### אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead)
-- Status: **PLANNED**. Opens when the owner starts building the I-008 library (after Exclusions #1). The PM will then ask the owner to open a session with exactly this name.
+- Session `local_eaba79d0-7816-4b66-a367-b722a7ed936c`. Status: **ACTIVE**. Started: 2026-09-26 ~23:10. Passed its onboarding interview (it had already checked its cwd). First deliverable: the owner's pre-trip labeled SEED (a few hundred photos), then EVAL_PLAN / LIBRARY_SPEC / LABEL_SCHEMA / queries / the baseline.
 - Scope: owns curation quality + the evaluation methodology. Defines tests, compares approaches, measures, finds failure modes; coordinates implementation through the PM. Plan: see ACTIVE_WORK "Curation gate evidence" (AI-assisted ground truth, objective vs. subjective labels with confidence, a small label set, a 10% blind subset, local by default).
 
 ### Cloud Worker #1 (cloud session titled "פרויקט ביקורת ענן"; formerly logged as "Cloud Handoff Worker #1")
