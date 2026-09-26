@@ -83,11 +83,19 @@ When a new worker is needed, the PM tells the owner ONLY the exact session name 
 - On every status change: update WORKERS.md (final status, end commit, replacement, handoff) → move the session to the right group. Replacements keep their numbering (#1 archived → #2 active).
 - If the move tool is unavailable, the PM tells the owner the exact single UI action.
 
+## Cloud-worker rule (owner, 2026-09-26; permanent)
+The Project Manager is the operational authority and coordination hub. Cloud workers stay synchronized with the PM on all meaningful work.
+- Cloud workers never change priorities or roadmap direction on their own, never start unrelated work, never merge to `main`, never touch work reserved for another worker, and never create a parallel management process.
+- If the PM is temporarily unavailable, a cloud worker continues only work that is already clearly within its approved scope.
+- Conflicts, stale documentation, local-only dependencies, architecture/product risks and new ideas are raised to the PM, not decided silently.
+- Every cloud task ends with a section **"Handoff to Project Manager"** covering: branch/commit; what changed; tests/research performed; assumptions; unresolved issues; dependencies/conflicts; recommended next action; what requires PM approval. The handoff is committed under `project_management/handoffs/` on the worker's branch.
+
 ## Registry
 
 ### Project Manager #1
 - Session: "project manager" (`local_c0a790a5-b448-43eb-8131-d1b38c8cc58d`). Status: **ACTIVE**. Started: 2026-09-26 14:41.
 - Scope: coordination, state files, the owner interface. No feature code.
+- Handoff plan: before the Japan trip PM #1 writes a final handoff and becomes RETIRED; **Project Manager #2** starts on Itay's computer with the startup instruction in `HANDOFF_TO_ITAY.md`.
 
 ### Quality Worker #1 (session title "עובד איכות", formerly "איכות סינון תמונות")
 - Session `local_a74829e2-41be-4774-904d-cb88a891e546`. Status: **DONE**. Started: 2026-09-26 ~13:00. Ended: 18:22. Start commit: `7927635`. End commit: `a9783bb`.
@@ -98,7 +106,7 @@ When a new worker is needed, the PM tells the owner ONLY the exact session name 
   - repeated network (DNS) errors near the end.
 
 ### Exclusions Worker #1 (session title "עובד החרגות", formerly "החרגת תמונות בסינון")
-- Session `local_028eae54-f07c-4076-8f47-8692a8134014`. Status: **WAITING**. Started: 2026-09-26 ~11:00. Start commit: `7927635`.
+- Session `local_028eae54-f07c-4076-8f47-8692a8134014`. Status: **WAITING**. Started: 2026-09-26 ~11:00. Start commit: `7927635`. Its uncommitted work exists ONLY on the owner's PC (not in GitHub) — needs an owner/PM decision before the Japan trip.
 - Scope: pre-scan exclusions (schema v3, ADR-016). About 1/3 done, uncommitted, paused because of file overlap with Quality #1.
 - Context 21%. It resumes after Dev Reload #1, per the owner's order.
 
@@ -117,3 +125,9 @@ When a new worker is needed, the PM tells the owner ONLY the exact session name 
 ### אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead)
 - Status: **PLANNED**. Opens when the owner starts building the I-008 library (after Exclusions #1). The PM will then ask the owner to open a session with exactly this name.
 - Scope: owns curation quality + the evaluation methodology. Defines tests, compares approaches, measures, finds failure modes; coordinates implementation through the PM. Plan: see ACTIVE_WORK "Curation gate evidence" (AI-assisted ground truth, objective vs. subjective labels with confidence, a small label set, a 10% blind subset, local by default).
+
+### Cloud Handoff Worker #1 (cloud session, branch `claude/happy-cori-p2nejq`)
+- Status: **DONE** (reviewed and merged by PM #1, 2026-09-26 ~22:30). Started/ended: 2026-09-26. Start commit: `64d099a`.
+- Scope: read-only audit, then `HANDOFF_TO_ITAY.md`, Git-verified fixes to the state docs, README "new machine" section, PM startup instruction. No product code, no W2, no local data.
+- Deliverable for the PM: `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`. Nothing merged to `main`.
+
