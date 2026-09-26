@@ -188,3 +188,24 @@ Use this file for decisions that would otherwise be forgotten.
 - *One photo = one place:* kept and filtered partition all photos; each filtered photo has ONE primary reason and appears in one tab only, priority עותק כפול > צילום מסך > איכות ירודה (blur + too small, merged for customers, separate internally) > תאורה (חשוכה / בהירה מדי) > "הוצאת ידנית"; other reasons show as small text on the tile. Counts add up (kept + filtered = total; tabs = filtered). Server: `_FILTERED`, `_PRIMARY`, filters `reason_*`, `changes`; tests assert all of this.
 - *Screenshot rule unchanged:* the photos the owner restored from "צילומי מסך" were real screenshots (status bar visible) *of* people — a relevance judgment, correctly handled by restoring, not a format error.
 11. The viewer's verdict box shows only the filter decision in neutral words ("✅ נשארה בבחירה" / "הסינון הציע להוציא — …" + technical reason / "↩ החזרת אותה לבחירה"); the print-size picker/simulation was removed from the customer UI.
+
+## ADR-019 — Local project-management dashboard (dev tooling)
+
+**Status:** accepted (2026-09-26, owner approved via PM).
+
+**Context.** Several Claude sessions (PM + workers) work in parallel on one working
+tree. The owner is non-technical and needs a quick, trustworthy view of the state
+without reading markdown files or chat transcripts.
+
+**Decision.** A separate, stdlib-only local web dashboard in `project_management/`,
+served on `127.0.0.1:8790` by `start_project_manager.bat`. It aggregates git (read-only
+allowlist), the coordination docs, a PM-written `state.json` (git-ignored), PM-written
+daily summaries (committed) and, optionally, Claude Code transcripts (read-only,
+redacted, estimate-only context). Actions are honest *requests* appended to
+`inbox.jsonl` for the owner to paste to the PM; the dashboard never controls sessions.
+
+**Tradeoffs.** The PM must keep `state.json` current (the dashboard is only as fresh as
+it is). The transcript format is undocumented, so that adapter is isolated in one
+module and degrades to "no data". Hebrew-only UI.
+
+**Reversible?** Yes — delete `project_management/` and the `.bat`; the product is untouched.

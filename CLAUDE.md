@@ -27,6 +27,7 @@ Keep explanations understandable and concise. When a technical decision is impor
 
 ## Working rules
 1. Read this file, `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `ROADMAP.md`, and `MEMORY.md` before major work.
+1a. Multi-session work: every worker session reads `ACTIVE_WORK.md` before touching code and follows its coordination protocol (ownership, schema/ADR reservations, messaging the "project manager" session, commit gate).
 2. Before coding a new milestone, state a short implementation plan.
 3. Work incrementally. Keep the app runnable after each meaningful change.
 4. Do not rewrite working components unnecessarily.
