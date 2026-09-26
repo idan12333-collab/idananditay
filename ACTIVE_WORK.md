@@ -92,6 +92,12 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
     The Curation Quality Track stays open and high-priority until the gate evidence exists.
 - Tooling freeze until the I-007 spike runs (only I-002 is allowed, if it stays small).
 
+## 7a POC decision (PM #1, 2026-09-26, from MODEL_REGISTRY `541108e`)
+- Compare **SigLIP 2 base** (primary; Apache-2.0 weights, multilingual, Core ML path) against **OpenCLIP xlm-roberta-base-ViT-B-32** (multilingual baseline; POC_ONLY because of LAION provenance).
+- Before downloading, the 7a worker must verify on the local machine (the cloud couldn't reach the sources): the license text of the code AND the weights on the official model cards, the Core ML/iPhone path, and the published speed. It updates MODEL_REGISTRY.
+- Evaluation belongs to the curation lead: Hebrew + English queries from `evaluation/queries_template.md`, measured on the owner's seed / eval library. Winner by measured quality, speed per 1,000 photos, license and iPhone feasibility, never by demo.
+- 7a starts only after the seed labels exist (ground truth first).
+
 ## Curation gate evidence (required before album generation depends on curation)
 1. The evaluation set is real: ≥1,000 original photos covering several years, people, pets, trips, events and junk types, fully owner-labeled. Part of it is held out and never used for tuning.
 2. False exclusion: the "definitely include" rate (target set from the baseline, expected to be very low) and **zero** lost "special moment" photos, measured at the candidate stage.

@@ -129,7 +129,7 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 ### Cloud Worker #1 (cloud session titled "פרויקט ביקורת ענן"; formerly logged as "Cloud Handoff Worker #1")
 - **Category:** Cloud Workers. It is managed by the PM like any other worker.
 - **Communication:** the PM can't reach cloud sessions directly. The owner relays messages word for word: the PM writes the exact message → the owner pastes it → the owner pastes back the reply or handoff. The owner doesn't decide tasks.
-- **Status:** ACTIVE. Task 3 (the M2 model shortlist) is ready to relay.
+- **Status:** WAITING (no task). Task 3, the M2 model shortlist, is DONE: branch `claude/cw1-m2-model-shortlist` merged by the PM as `541108e`. The PM decides any future research.
 - Task I-014 + I-012: DONE, branch `claude/cw1-build-vs-buy` merged by the PM as `b6f8b49`.
 - **History:**
   1. Handoff-to-Itay docs, branch `claude/happy-cori-p2nejq`. Merged by PM #1 as `cd87ca9`, DONE.
