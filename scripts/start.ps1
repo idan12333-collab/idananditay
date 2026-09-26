@@ -28,6 +28,6 @@ if ($args -contains "--test") {
     exit $LASTEXITCODE
 }
 Write-Host ""
-Write-Host "AI Photo Album is running at http://127.0.0.1:8765  (close this window to stop)"
-Start-Process "http://127.0.0.1:8765"
-& $py -m app serve
+# The server opens the browser itself, and only once it is really serving. If an older copy
+# of the app is still running it refuses to start and says so (ADR-013).
+& $py -m app serve --open-browser

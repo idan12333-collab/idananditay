@@ -37,7 +37,7 @@ const num = (n) => (n ?? 0).toLocaleString("he-IL");
 async function loadHealth() {
   try {
     const h = await api("/api/health");
-    $("health").textContent = `v${h.version} · מסד נתונים: ${h.database === "ok" ? "תקין" : "שגיאה"} · HEIC: ${h.heic_supported ? "נתמך" : "לא נתמך"}`;
+    $("health").textContent = `v${h.version} (build ${h.build}) · מסד נתונים: ${h.database === "ok" ? "תקין" : "שגיאה"} · HEIC: ${h.heic_supported ? "נתמך" : "לא נתמך"}`;
   } catch (e) { $("health").textContent = "השרת לא זמין"; }
 }
 

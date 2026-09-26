@@ -80,6 +80,34 @@ Use this file for decisions that would otherwise be forgotten.
 
 **Why:** Zero tooling for a non-programmer owner; enough for inspection/review screens. **Tradeoff:** the future visual album editor (M6/M8) will likely need a component framework; the JSON API is the stable contract, so the UI can be replaced without backend changes. UI strings are inline Hebrew — i18n needed before a multi-language release.
 
+## ADR-012 — IDs are never reused; image URLs are content-versioned
+**Status:** Accepted (2026-09-26) — fixes a real Milestone 1 bug
+
+**Bug:** Owner scanned folder A, deleted it, scanned folder B (one photo): the UI showed A's photo. The database was correct. Cause: `libraries`/`photos`/`duplicate_groups` used plain `INTEGER PRIMARY KEY`, which SQLite reuses (max(id)+1) after deletes, so B's photo got A's old ID → identical URL `/api/photos/1/thumbnail`, which was served with `Cache-Control: max-age=86400` → the browser displayed its cached copy of A. Same failure when a file is replaced in place with new content.
+
+**Decision:**
+1. Those three tables use `INTEGER PRIMARY KEY AUTOINCREMENT` (schema v2): a deleted ID is never handed out again. This also protects future references to photo IDs (human labels, album projects). Existing v1 databases are migrated automatically on startup (create-copy-drop-rename; IDs preserved; FK check).
+2. Image URLs carry `?v=<first 16 hex of SHA-256>`. Only a request whose `v` matches the photo's current content hash is cached (`immutable`); unversioned/outdated URLs get `no-cache`; every response has `ETag` = content hash.
+3. All `/api/` JSON responses are `no-store`.
+
+**Rule for future work:** any URL for derived media (thumbnails, previews, crops, rendered pages) must include a content/version component; never cache a URL whose meaning can change.
+
+**Tradeoff:** AUTOINCREMENT is marginally slower on insert (negligible here).
+
+## ADR-013 — Single-instance server: bind first, refuse to hide behind an outdated copy
+**Status:** Accepted (2026-09-26) — second part of the "folder B shows folder A's photo" bug
+
+**What happened:** after ADR-012 was implemented, the owner re-ran `start.bat` while the pre-fix server (started 13:38:48) was still running. The launcher opened the browser unconditionally; the new process ran `create_app` (DB migrated to v2, "app started" logged at 13:56:31), then failed to bind port 8765 and exited. The browser therefore kept talking to the OLD process, which still issued ID-only URLs (`/api/photos/2/thumbnail`, `max-age=86400`) — photo ID 2 had belonged to an earlier scanned folder, so the browser showed its cached copy. The DB, the source file (SHA-256 `f10ef91f…`) and the generated thumbnail were all correct.
+
+**Decision:**
+1. `python -m app serve` binds the port **before** creating the app (exclusive bind on Windows via `SO_EXCLUSIVEADDRUSE`) and hands the socket to uvicorn. A process that cannot serve does no DB work.
+2. If the port is taken, `/api/health` of the existing server is probed. Same `build` → "already running", open browser. Different/older build (pre-ADR-013 copies report no build) → clear error, exit code 4, browser NOT opened. Other program → exit code 3.
+3. The browser is opened by the server itself (`--open-browser`), only after it is actually serving. `start.ps1` no longer opens it.
+4. `/api/health` reports `app`, `build` (fingerprint of the running code) and `pid`; the UI header shows the build; startup log includes build + pid.
+5. `index.html`/`app.js` are served `no-cache` so a code update is always picked up.
+
+**Tradeoff:** an outdated copy is not killed automatically (the owner closes its window) — explicit and predictable over magical. **Changeable:** could later auto-stop the old copy using the reported pid.
+
 ## ADR-011 — Synthetic fixtures instead of real photos in tests
 **Status:** Accepted (2026-09-26)
 

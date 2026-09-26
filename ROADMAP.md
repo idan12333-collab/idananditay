@@ -20,6 +20,8 @@
 - [x] Persist to SQLite (incremental rescans, missing-file tracking, job progress)
 - [x] Local gallery/index inspection UI (Hebrew RTL; filters, year histogram, duplicate groups, photo details)
 - [x] Tests with fixture images (27 tests)
+- [x] Bugfix 2026-09-26: folder B showed folder A's photo (ID reuse + browser cache). Fixed via never-reused IDs + content-versioned image URLs (ADR-012); regression tests added (32 tests)
+- [x] Bugfix part 2 (same day): the fix above was never actually running — an old server copy kept serving while the relaunch failed silently. Single-instance guard + build id (ADR-013); 40 tests
 
 ### Open follow-ups from M0–M1 (not blocking)
 - [x] Install Git for Windows, `git init`, first commit

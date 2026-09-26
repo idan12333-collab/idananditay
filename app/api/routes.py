@@ -14,6 +14,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from app import __version__
+from app.core.instance import APP_NAME, BUILD_ID, process_id
 from app.db.repository import PHOTO_FILTERS, PHOTO_SORTS, Repository
 from app.ingest.imaging import HEIC_SUPPORTED, to_rgb
 from app.ingest.scanner import SUPPORTED_EXTENSIONS
@@ -22,6 +23,22 @@ router = APIRouter(prefix="/api")
 
 PREVIEW_MAX_SIDE = 1600
 
+# Image URLs carry a content version (?v=<hash prefix>). A versioned URL always maps to the same
+# bytes, so it may be cached forever; anything else must be revalidated. This is what stops the
+# browser from showing a cached image of a different photo that once had the same URL.
+IMMUTABLE_CACHE = "private, max-age=31536000, immutable"
+REVALIDATE_CACHE = "no-cache"
+
+
+def _media_version(p: dict) -> str:
+    return (p.get("content_hash") or "")[:16]
+
+
+def _media_headers(p: dict, requested_version: str | None) -> dict[str, str]:
+    current = _media_version(p)
+    cacheable = bool(current) and requested_version == current
+    return {"Cache-Control": IMMUTABLE_CACHE if cacheable else REVALIDATE_CACHE, "ETag": f'"{p.get("content_hash")}"'}
+
 
 def _repo(request: Request) -> Repository:
     return request.app.state.repo
@@ -29,8 +46,9 @@ def _repo(request: Request) -> Repository:
 
 def _photo_out(p: dict) -> dict:
     p = dict(p)
-    p["thumbnail_url"] = f"/api/photos/{p['id']}/thumbnail" if p.get("thumbnail_path") else None
-    p["preview_url"] = f"/api/photos/{p['id']}/preview" if p.get("status") == "ok" else None
+    v = _media_version(p)
+    p["thumbnail_url"] = f"/api/photos/{p['id']}/thumbnail?v={v}" if p.get("thumbnail_path") else None
+    p["preview_url"] = f"/api/photos/{p['id']}/preview?v={v}" if p.get("status") == "ok" else None
     # Human-readable signals (the UI shows these as badges).
     reasons = []
     if p.get("duplicate_group_id"):
@@ -57,7 +75,10 @@ class LibraryCreate(BaseModel):
 def health(request: Request) -> dict:
     return {
         "status": "ok",
+        "app": APP_NAME,
         "version": __version__,
+        "build": BUILD_ID,  # fingerprint of the running code — shows which copy of the app answers
+        "pid": process_id(),
         "database": "ok" if request.app.state.db.ping() else "error",
         "heic_supported": HEIC_SUPPORTED,
         "supported_extensions": sorted(SUPPORTED_EXTENSIONS),
@@ -190,18 +211,18 @@ def get_photo(photo_id: int, request: Request) -> dict:
 
 
 @router.get("/photos/{photo_id}/thumbnail")
-def photo_thumbnail(photo_id: int, request: Request):
+def photo_thumbnail(photo_id: int, request: Request, v: str | None = None):
     p = _get_photo_or_404(request, photo_id)
     if not p.get("thumbnail_path"):
         raise HTTPException(404, "No thumbnail")
     path = request.app.state.settings.thumbnails_dir / p["thumbnail_path"]
     if not path.is_file():
         raise HTTPException(404, "Thumbnail file missing (rescan to regenerate)")
-    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
+    return FileResponse(path, media_type="image/jpeg", headers=_media_headers(p, v))
 
 
 @router.get("/photos/{photo_id}/preview")
-def photo_preview(photo_id: int, request: Request):
+def photo_preview(photo_id: int, request: Request, v: str | None = None):
     """Larger JPEG rendered on the fly from the original (read-only; works for HEIC too)."""
     p = _get_photo_or_404(request, photo_id)
     src = Path(p["source_path"])
@@ -218,7 +239,7 @@ def photo_preview(photo_id: int, request: Request):
         img.save(buf, "JPEG", quality=88)
     except Exception as exc:
         raise HTTPException(500, f"Cannot render preview: {type(exc).__name__}") from exc
-    return Response(buf.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+    return Response(buf.getvalue(), media_type="image/jpeg", headers=_media_headers(p, v))
 
 
 # -------------------------------------------------------------------- system

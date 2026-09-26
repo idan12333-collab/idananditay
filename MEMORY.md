@@ -12,8 +12,12 @@ The system searches and curates a large photo library automatically before layin
 Milestones 0–1 complete and closed (2026-09-26). Milestone 2 NOT started (owner asked to wait).
 
 ## Current state (session handoff)
-- Code state: all code saved; 27/27 tests passing (last run 2026-09-26 via `run_tests.bat` path). App verified end-to-end in a browser (scan, stats, filters, duplicate groups, photo detail).
-- Last user instruction: housekeeping only; do not start M2 and do not change working code until told.
+- Code state: all code saved; 40/40 tests passing (last run 2026-09-26).
+- 2026-09-26: fixed real-photo bug "folder B shows folder A's photo" (root cause: SQLite ID reuse after library delete + ID-only image URLs cached by the browser for 24h). Fix = schema v2 AUTOINCREMENT + content-versioned image URLs + no-store API JSON (ADR-012). Regression tests: `tests/test_library_isolation.py`. The owner's DB (`~/.ai-photo-album/data`) migrates to v2 automatically on next app start (verified on a copy).
+- 2026-09-26 (later): owner reported the bug persisted. Real cause: the PRE-FIX server process (pid 6868, started 13:38:48) was still running; relaunching start.bat failed to bind the port silently while the launcher opened the browser anyway, so the old code kept serving. DB/source/thumbnail were verified correct (sha256 f10ef91f…, identical pHash). Fixed with a single-instance guard (ADR-013, `app/core/instance.py`, `tests/test_instance.py`). 40/40 tests pass.
+- Owner must close the old app window once (old copies cannot be detected by build id; the new launcher now refuses to start and says so).
+- Debug tip: `/api/health` shows `build` and `pid` of the process actually answering; the UI header shows the build.
+- Last user instruction: fix this bug only; do NOT start M2; do not commit until the real-world cause is explained.
 - **Recommended next action:** when the owner approves M2 — (1) research + record license of candidate image-text embedding models in MODEL_REGISTRY.md (code AND weights, commercial use), (2) propose the choice to the owner, (3) only then implement `ImageEmbeddingProvider` + local `VectorStore`, (4) build a minimal evaluation harness (relevant/irrelevant labels, precision@K) alongside it.
 - Useful before M2: owner runs the app on a copy of a real photo folder and reports mis-flags → calibrate blur/exposure/screenshot thresholds.
 
@@ -73,7 +77,9 @@ Build a local desktop/web proof of concept first. Do not start with native iOS.
 - No evaluation harness yet — required before tuning thresholds (plan it with M2).
 - Quality thresholds only validated on synthetic images, not on a real library.
 - Single background job at a time (JobManager); no job queue.
-- Schema versioning is minimal (`meta.schema_version` = 1); add real migrations before schema changes reach users.
+- Schema versioning: `meta.schema_version` = 2 with a hand-written v1→v2 migration in `app/db/database.py`; consider a real migration tool when schema changes become frequent.
+- Rule (ADR-012): media URLs must be content-versioned; DB IDs are never reused.
+- Rule (ADR-013): only one server per port; `serve` binds before doing any work; verify the running `build` when debugging "my fix didn't work".
 
 ## Open issues
 1. HEIC decoding license (pillow-heif GPLv2 wheels) — must be resolved before any commercial distribution.

@@ -6,12 +6,17 @@ the API threads and the background ingestion thread at the same time.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+
+# Tables whose IDs appear in URLs, labels or projects. AUTOINCREMENT guarantees a deleted ID is
+# never handed out again (plain INTEGER PRIMARY KEY reuses max(id)+1 after deletes).
+NEVER_REUSED_ID_TABLES = ("libraries", "duplicate_groups", "photos")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -20,7 +25,7 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 
 CREATE TABLE IF NOT EXISTS libraries (
-    id           INTEGER PRIMARY KEY,
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
     root_path    TEXT NOT NULL UNIQUE,
     name         TEXT NOT NULL,
     created_at   TEXT NOT NULL,
@@ -28,7 +33,7 @@ CREATE TABLE IF NOT EXISTS libraries (
 );
 
 CREATE TABLE IF NOT EXISTS photos (
-    id                  INTEGER PRIMARY KEY,
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     library_id          INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
     source_path         TEXT NOT NULL,
     rel_path            TEXT NOT NULL,
@@ -78,7 +83,7 @@ CREATE INDEX IF NOT EXISTS ix_photos_content_hash ON photos(content_hash);
 CREATE INDEX IF NOT EXISTS ix_photos_dup_group ON photos(duplicate_group_id);
 
 CREATE TABLE IF NOT EXISTS duplicate_groups (
-    id            INTEGER PRIMARY KEY,
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
     library_id    INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
     kind          TEXT NOT NULL,                -- exact | near
     best_photo_id INTEGER,
@@ -126,6 +131,8 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
+            if _stored_version(conn) == 1:
+                _migrate_v1_to_v2(conn)
             conn.executescript(SCHEMA)
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES('schema_version', ?) "
@@ -136,3 +143,37 @@ class Database:
     def ping(self) -> bool:
         with self.connect() as conn:
             return conn.execute("SELECT 1").fetchone()[0] == 1
+
+
+def _stored_version(conn: sqlite3.Connection) -> int | None:
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'").fetchone() is None:
+        return None
+    row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    return int(row[0]) if row else None
+
+
+def _migrate_v1_to_v2(conn: sqlite3.Connection) -> None:
+    """v1 -> v2: rebuild ID tables with AUTOINCREMENT so deleted IDs are never reused.
+
+    SQLite cannot add AUTOINCREMENT in place, so each table is copied into a new definition
+    (the documented create-copy-drop-rename procedure). Existing IDs are preserved.
+    """
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")  # only takes effect outside a transaction
+    try:
+        script = ["BEGIN;"]
+        for table in NEVER_REUSED_ID_TABLES:
+            ddl = re.search(rf"CREATE TABLE IF NOT EXISTS {table} \(.*?\n\);", SCHEMA, re.S).group(0)
+            script += [
+                ddl.replace(f"CREATE TABLE IF NOT EXISTS {table} (", f"CREATE TABLE {table}__v2 ("),
+                f"INSERT INTO {table}__v2 SELECT * FROM {table};",
+            ]
+        script += [f"DROP TABLE {t};" for t in NEVER_REUSED_ID_TABLES]
+        script += [f"ALTER TABLE {t}__v2 RENAME TO {t};" for t in NEVER_REUSED_ID_TABLES]
+        script += ["UPDATE meta SET value = '2' WHERE key = 'schema_version';", "COMMIT;"]
+        conn.executescript("\n".join(script))
+        problems = conn.execute("PRAGMA foreign_key_check").fetchall()
+        if problems:
+            raise RuntimeError(f"schema migration v1->v2 left {len(problems)} broken references")
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
