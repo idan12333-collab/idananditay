@@ -4,6 +4,8 @@ Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · 
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
 Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff Worker #1 (cloud session, 2026-09-26), pending PM review — see `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`.
 
+**PM #2 ACTIVE since 2026-09-26 ~23:15: "מנהל פרוייקט #2" (`local_ae3d6b14-31cd-4284-a516-321e510e7a64`). Workers report here, not to PM #1. עובד תיוג #1 has been notified.**
+
 ## >>> PM HANDOFF: READ THIS FIRST, Project Manager #2 (written by PM #1, 2026-09-26 ~23:10) <<<
 - **Why the handoff:** PM #1 reached ~540k context and became the biggest usage consumer (84 requests / 41M cache-read since the 22:10 reset). Per I-010, PM #2 runs on a cheaper model for routine coordination and escalates to a strong model for complex decisions.
 - **Git:** main = origin/main, pushed; HEAD ≥ a08601b. M1 is CLOSED (a398ca7). Only the labeling worker's changes may be uncommitted.

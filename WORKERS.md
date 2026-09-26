@@ -93,9 +93,13 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 ## Registry
 
 ### Project Manager #1
-- Session: "project manager" (`local_c0a790a5-b448-43eb-8131-d1b38c8cc58d`). Status: **ACTIVE**. Started: 2026-09-26 14:41.
+- Session: "project manager" (`local_c0a790a5-b448-43eb-8131-d1b38c8cc58d`). Status: **REPLACED** (2026-09-26 ~23:15). Started: 2026-09-26 14:41.
 - Scope: coordination, state files, the owner interface. No feature code.
-- Handoff plan: before the Japan trip PM #1 writes a final handoff and becomes RETIRED; **Project Manager #2** starts on Itay's computer with the startup instruction in `HANDOFF_TO_ITAY.md`.
+- Reason for replacement: context reached ~540k and made it the biggest usage consumer (owner-approved). Handoff: ACTIVE_WORK.md "PM HANDOFF".
+
+### Project Manager #2
+- Session: "מנהל פרוייקט #2" (`local_ae3d6b14-31cd-4284-a516-321e510e7a64`). Status: **ACTIVE**. Started: 2026-09-26 23:10, on Idan's computer.
+- Scope: same as PM #1. Itay becomes acting owner from Monday 2026-09-28 (`HANDOFF_TO_ITAY.md`).
 
 ### Quality Worker #1 (session title "עובד איכות", formerly "איכות סינון תמונות")
 - Session `local_a74829e2-41be-4774-904d-cb88a891e546`. Status: **DONE**. Started: 2026-09-26 ~13:00. Ended: 18:22. Start commit: `7927635`. End commit: `a9783bb`.
