@@ -58,7 +58,7 @@ Core question: given a large real library and an album request, does the system 
 - [x] Add test framework (pytest, synthetic fixture photos)
 - [x] Create basic FastAPI health endpoint (`GET /api/health`)
 
-## Milestone 1 — Photo ingestion & technical filtering (IN PROGRESS: core done, closing items open)
+## Milestone 1 — Photo ingestion & technical filtering ✅ (closed 2026-09-26: the technical filter is stable enough to continue; curation quality stays open in the Curation Quality Track)
 *Definition of done: the technical-filtering implementation is stable enough to continue. It does NOT mean the photo-selection problem is solved; that's tracked by the Curation Quality Track.*
 Customer value: point the app at a library, and it's indexed safely; obvious technical rejects are suggested (never deleted); the user reviews and corrects the suggestions quickly.
 - [x] Scan folder recursively (skips hidden/system folders, Unicode/Hebrew paths)

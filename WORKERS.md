@@ -106,7 +106,7 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
   - repeated network (DNS) errors near the end.
 
 ### Exclusions Worker #1 (session title "עובד החרגות", formerly "החרגת תמונות בסינון")
-- Session `local_028eae54-f07c-4076-8f47-8692a8134014`. Status: **WAITING**. Started: 2026-09-26 ~11:00. Start commit: `7927635`. Its uncommitted work exists ONLY on the owner's PC (not in GitHub) — needs an owner/PM decision before the Japan trip.
+- Session `local_028eae54-f07c-4076-8f47-8692a8134014`. Status: **DONE** (end commit `e806743`, 2026-09-26 22:45). Started: 2026-09-26 ~11:00. Start commit: `7927635`. Its uncommitted work exists ONLY on the owner's PC (not in GitHub) — needs an owner/PM decision before the Japan trip.
 - Scope: pre-scan exclusions (schema v3, ADR-016). About 1/3 done, uncommitted, paused because of file overlap with Quality #1.
 - Context 21%. It resumes after Dev Reload #1, per the owner's order.
 
@@ -126,8 +126,16 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Status: **PLANNED**. Opens when the owner starts building the I-008 library (after Exclusions #1). The PM will then ask the owner to open a session with exactly this name.
 - Scope: owns curation quality + the evaluation methodology. Defines tests, compares approaches, measures, finds failure modes; coordinates implementation through the PM. Plan: see ACTIVE_WORK "Curation gate evidence" (AI-assisted ground truth, objective vs. subjective labels with confidence, a small label set, a 10% blind subset, local by default).
 
-### Cloud Handoff Worker #1 (cloud session, branch `claude/happy-cori-p2nejq`)
-- Status: **DONE** (reviewed and merged by PM #1, 2026-09-26 ~22:30). Started/ended: 2026-09-26. Start commit: `64d099a`.
-- Scope: read-only audit, then `HANDOFF_TO_ITAY.md`, Git-verified fixes to the state docs, README "new machine" section, PM startup instruction. No product code, no W2, no local data.
-- Deliverable for the PM: `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`. Nothing merged to `main`.
-
+### Cloud Worker #1 (cloud session titled "פרויקט ביקורת ענן"; formerly logged as "Cloud Handoff Worker #1")
+- **Category:** Cloud Workers. It is managed by the PM like any other worker.
+- **Communication:** the PM can't reach cloud sessions directly. The owner relays messages word for word: the PM writes the exact message → the owner pastes it → the owner pastes back the reply or handoff. The owner doesn't decide tasks.
+- **Status:** ACTIVE. The owner relayed the I-014 task at ~22:38 on 2026-09-26.
+- **History:**
+  1. Handoff-to-Itay docs, branch `claude/happy-cori-p2nejq`. Merged by PM #1 as `cd87ca9`, DONE.
+  2. I-012 desk research. Not in Git yet; the PM asked where it is.
+- **Current task:** I-014 Build-vs-Buy / White-Label research. Brief: `project_management/handoffs/cloud_task_build_vs_buy.md` (commit `94f43f6`).
+- **Branch/PR:** a new branch per task, never main. The PM reviews and merges.
+- **Dependencies:** none. Research only, no overlap with local workers.
+- **Last handoff:** `project_management/handoffs/2026-09-26_cloud_handoff_for_pm.md`.
+- **Next action:** the owner relays the PM's message → Cloud Worker #1 runs I-014 → its handoff returns via the owner → the PM reviews and decides the next step.
+- **Who performs the communication:** the owner (relay only).
