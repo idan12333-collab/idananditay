@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AI Photo Album — ספריית תמונות</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <meta name="app-build" content="__BUILD__">
+  <link rel="stylesheet" href="/static/styles.css?v=__BUILD__">
 </head>
 <body>
+<div id="updateBanner" class="update-banner" hidden>יש גרסה חדשה של האפליקציה. <button id="reloadBtn" class="small">רענון עכשיו</button></div>
 <header class="topbar">
   <div class="brand">📷 AI Photo Album <span class="muted">· אינדוקס ספרייה (Milestone 1)</span></div>
   <div id="health" class="muted"></div>
@@ -18,9 +20,10 @@
     <p class="muted">התמונות המקוריות רק נקראות — לעולם לא משתנות. כל הנתונים נשמרים מקומית במחשב שלך.</p>
     <div class="row">
       <input id="pathInput" type="text" placeholder="לדוגמה: C:\Users\me\Pictures\Family" dir="ltr">
-      <button id="browseBtn" class="secondary">בחירה…</button>
+      <button id="folderBrowserBtn" class="secondary">עיון בתיקיות…</button>
       <button id="addBtn">סרוק תיקייה</button>
     </div>
+    <div class="muted">או: <a href="#" id="browseBtn">חלון הבחירה של Windows</a> / הקלדת נתיב בשדה</div>
     <div id="formError" class="error"></div>
   </section>
 
@@ -96,6 +99,27 @@
   </div>
 </dialog>
 
-<script src="/static/app.js"></script>
+<dialog id="fbDialog" class="fb">
+  <div class="fb-head">
+    <button id="fbUp" class="secondary small" title="תיקייה אחת למעלה">⬆ למעלה</button>
+    <div id="fbCrumbs" class="fb-crumbs"></div>
+    <button id="fbClose" class="secondary small">סגירה ✕</button>
+  </div>
+  <div class="fb-body">
+    <nav id="fbPlaces" class="fb-places"></nav>
+    <div id="fbMain" class="fb-main">
+      <div id="fbFolders" class="fb-folders"></div>
+      <div id="fbGrid" class="fb-grid"></div>
+      <div id="fbSentinel"></div>
+      <div id="fbMsg" class="muted center"></div>
+    </div>
+  </div>
+  <div class="fb-foot">
+    <span id="fbCounts" class="muted"></span>
+    <button id="fbChoose">בחר את התיקייה הזו</button>
+  </div>
+</dialog>
+
+<script src="/static/app.js?v=__BUILD__"></script>
 </body>
 </html>

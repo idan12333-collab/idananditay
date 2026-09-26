@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     port: int = 8765
     # Host headers accepted by the API (protects the local server against DNS rebinding).
     allowed_hosts: list[str] = ["127.0.0.1", "localhost"]
+    # Folders the "choose folder" browser may show. Empty = all local fixed/removable drives.
+    browse_roots: list[Path] = []
 
     log_level: str = "INFO"
     log_json: bool = False

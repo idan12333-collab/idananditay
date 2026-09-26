@@ -25,6 +25,9 @@
 
 ### Open follow-ups from M0–M1 (not blocking)
 - [x] Install Git for Windows, `git init`, first commit
+- [x] UX 2026-09-26: in-app folder browser with thumbnails/videos before choosing a folder (ADR-014; 63 tests)
+- [x] UX 2026-09-26: build-versioned page assets + "new version — reload" banner (ADR-015; 64 tests)
+- [ ] Scanner: warn before scanning OneDrive cloud-only files (scan downloads them)
 - [ ] Calibrate blur/exposure/screenshot thresholds on a real photo library
 - [ ] Resolve HEIC decoder licensing before commercial distribution (see MODEL_REGISTRY)
 - [ ] Replace `httpx` TestClient dependency warning (Starlette suggests `httpx2`)

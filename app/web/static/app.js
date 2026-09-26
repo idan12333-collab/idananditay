@@ -34,9 +34,21 @@ const fmtDate = (iso) => (iso ? iso.replace("T", " ").slice(0, 16) : "—");
 const num = (n) => (n ?? 0).toLocaleString("he-IL");
 
 // ------------------------------------------------------------------ health
+// Build of the page currently shown (filled in by the server). If the server now runs another
+// build, the page is outdated: offer a reload instead of silently running old UI code (ADR-015).
+const PAGE_BUILD = document.querySelector('meta[name="app-build"]')?.content || "";
+
+async function checkForUpdate() {
+  try {
+    const h = await api("/api/health");
+    $("updateBanner").hidden = !h.build || h.build === PAGE_BUILD;
+  } catch (_) { /* server restarting; check again later */ }
+}
+
 async function loadHealth() {
   try {
     const h = await api("/api/health");
+    $("updateBanner").hidden = !h.build || h.build === PAGE_BUILD;
     $("health").textContent = `v${h.version} (build ${h.build}) · מסד נתונים: ${h.database === "ok" ? "תקין" : "שגיאה"} · HEIC: ${h.heic_supported ? "נתמך" : "לא נתמך"}`;
   } catch (e) { $("health").textContent = "השרת לא זמין"; }
 }
@@ -72,13 +84,101 @@ async function addLibrary() {
   finally { $("addBtn").disabled = false; }
 }
 
-async function browse() {
-  $("browseBtn").disabled = true;
+async function browse(ev) {
+  ev?.preventDefault();
   try {
     const res = await api("/api/system/pick-folder", { method: "POST" });
     if (res.path) $("pathInput").value = res.path;
   } catch (e) { $("formError").textContent = e.message; }
-  finally { $("browseBtn").disabled = false; }
+}
+
+// ----------------------------------------------------------- folder browser
+// Read-only in-app folder browser (ADR-014): navigate folders and scroll through their photos
+// before choosing. Pages of items are fetched as the user scrolls; thumbnails are requested only
+// when a tile comes near the visible area.
+const FB_PAGE = 200;
+const fb = { path: null, offset: 0, total: 0, loading: false, token: 0, imgObserver: null, pageObserver: null };
+const fmtSize = (b) => (b >= 1073741824 ? `${(b / 1073741824).toFixed(1)}GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${Math.max(1, Math.round(b / 1024))}KB`);
+
+async function openFolderBrowser() {
+  $("fbDialog").showModal();
+  if (!fb.imgObserver) {
+    fb.imgObserver = new IntersectionObserver((entries) => entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const img = en.target; img.src = img.dataset.src; fb.imgObserver.unobserve(img);
+    }), { root: $("fbMain"), rootMargin: "600px 0px" });
+    fb.pageObserver = new IntersectionObserver((entries) => {
+      if (entries.some((en) => en.isIntersecting)) fbLoadPage();
+    }, { root: $("fbMain"), rootMargin: "800px 0px" });
+    fb.pageObserver.observe($("fbSentinel"));
+  }
+  let places = [];
+  try { places = (await api("/api/browse/roots")).locations; } catch (e) { $("fbMsg").textContent = e.message; }
+  const icon = { pictures: "🖼️", desktop: "🖥️", cloud: "☁️", home: "🏠", drive: "💽" };
+  $("fbPlaces").innerHTML = places.map((p) =>
+    `<button class="fb-place" data-path="${esc(p.path)}" title="${esc(p.path)}">${icon[p.kind] || "📁"} <span>${esc(p.label)}</span></button>`).join("");
+  $("fbPlaces").querySelectorAll(".fb-place").forEach((b) => b.addEventListener("click", () => fbNavigate(b.dataset.path)));
+  const typed = $("pathInput").value.trim().replace(/^"|"$/g, "");
+  const start = fb.path || typed || places[0]?.path;
+  if (start) fbNavigate(start, typed && !fb.path ? places[0]?.path : null);
+}
+
+async function fbNavigate(path, fallback = null) {
+  const token = ++fb.token;
+  fb.path = null; fb.offset = 0; fb.total = 0; fb.loading = false;
+  fb.imgObserver.disconnect();  // tiles of the previous folder are about to be removed
+  $("fbGrid").innerHTML = ""; $("fbFolders").innerHTML = ""; $("fbMsg").textContent = "טוען…";
+  $("fbChoose").disabled = true; $("fbMain").scrollTop = 0;
+  let res;
+  try { res = await api(`/api/browse?${new URLSearchParams({ path, offset: 0, limit: FB_PAGE })}`); }
+  catch (e) {
+    if (token !== fb.token) return;
+    if (fallback) return fbNavigate(fallback);
+    $("fbMsg").textContent = `לא ניתן לפתוח את התיקייה: ${e.message}`; return;
+  }
+  if (token !== fb.token) return;  // the user already navigated elsewhere
+  fb.path = res.path;
+  $("fbChoose").disabled = false;
+  $("fbUp").disabled = !res.parent;
+  $("fbUp").dataset.path = res.parent || "";
+  $("fbCrumbs").innerHTML = res.breadcrumbs.map((c) => `<a href="#" data-path="${esc(c.path)}">${esc(c.name)}</a>`).join(" ‹ ");
+  $("fbCrumbs").querySelectorAll("a").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); fbNavigate(a.dataset.path); }));
+  $("fbCrumbs").scrollLeft = -$("fbCrumbs").scrollWidth;  // RTL: keep the current folder in view
+  $("fbFolders").innerHTML = res.folders.map((f) => `<button class="fb-folder" data-path="${esc(f.path)}" title="${esc(f.name)}">📁 <span>${esc(f.name)}</span></button>`).join("");
+  $("fbFolders").querySelectorAll(".fb-folder").forEach((b) => b.addEventListener("click", () => fbNavigate(b.dataset.path)));
+  const c = res.counts;
+  $("fbCounts").textContent = [`${num(c.images)} תמונות`, `${num(c.videos)} סרטונים`, c.folders ? `${num(c.folders)} תתי-תיקיות (ייכללו בסריקה)` : "אין תתי-תיקיות"]
+    .concat(c.cloud_only ? [`${num(c.cloud_only)} נמצאים רק בענן`] : []).join(" · ");
+  fbAppend(res);
+}
+
+function fbAppend(res) {
+  fb.total = res.total;
+  fb.offset = res.offset + res.items.length;
+  $("fbGrid").insertAdjacentHTML("beforeend", res.items.map((it) => {
+    let inner;
+    if (it.kind === "video") inner = `<div class="fb-icon">🎬</div><span class="badge">וידאו</span>`;
+    else if (it.cloud_only) inner = `<div class="fb-icon">☁️</div><span class="badge">רק בענן — לא הורד</span>`;
+    else inner = `<img data-src="${esc(it.thumbnail_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fb-icon',textContent:'⚠️'}))">`;
+    return `<div class="fb-tile ${it.kind}" title="${esc(it.name)} · ${fmtSize(it.size)}">${inner}<div class="fb-name">${esc(it.name)}</div></div>`;
+  }).join(""));
+  $("fbGrid").querySelectorAll("img[data-src]:not([src])").forEach((img) => fb.imgObserver.observe(img));
+  $("fbMsg").textContent = fb.total === 0
+    ? (res.folders?.length ? "אין תמונות או סרטונים ישירות בתיקייה הזו — ראו תתי-תיקיות למעלה" : "התיקייה ריקה מתמונות וסרטונים")
+    : fb.offset < fb.total ? `מוצגים ${num(fb.offset)} מתוך ${num(fb.total)} — גללו לעוד` : "";
+}
+
+async function fbLoadPage() {
+  if (!fb.path || fb.loading || fb.offset >= fb.total) return;
+  const token = fb.token;
+  fb.loading = true;
+  try {
+    const res = await api(`/api/browse?${new URLSearchParams({ path: fb.path, offset: fb.offset, limit: FB_PAGE })}`);
+    if (token === fb.token) fbAppend(res);
+  } catch (e) { if (token === fb.token) $("fbMsg").textContent = e.message; }
+  finally { if (token === fb.token) fb.loading = false; }
+  // If the new page still does not fill the view, keep going.
+  if (token === fb.token) { const s = $("fbSentinel").getBoundingClientRect(), m = $("fbMain").getBoundingClientRect(); if (s.top < m.bottom + 800) fbLoadPage(); }
 }
 
 // ------------------------------------------------------------------- stats
@@ -241,6 +341,14 @@ async function openDetail(id) {
 $("addBtn").addEventListener("click", addLibrary);
 $("pathInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addLibrary(); });
 $("browseBtn").addEventListener("click", browse);
+$("folderBrowserBtn").addEventListener("click", openFolderBrowser);
+$("fbUp").addEventListener("click", () => { if ($("fbUp").dataset.path) fbNavigate($("fbUp").dataset.path); });
+$("fbClose").addEventListener("click", () => $("fbDialog").close());
+$("fbChoose").addEventListener("click", () => {
+  if (!fb.path) return;
+  $("pathInput").value = fb.path; $("formError").textContent = "";
+  $("fbDialog").close(); $("addBtn").focus();
+});
 $("librarySelect").addEventListener("change", (e) => selectLibrary(Number(e.target.value)));
 $("rescanBtn").addEventListener("click", async () => { const job = await api(`/api/libraries/${state.libraryId}/scan`, { method: "POST" }); showJob(job); });
 $("cancelBtn").addEventListener("click", async () => { if (state.lastJob) await api(`/api/jobs/${state.lastJob.id}/cancel`, { method: "POST" }); });
@@ -253,6 +361,11 @@ $("deleteBtn").addEventListener("click", async () => {
 $("moreBtn").addEventListener("click", loadMore);
 $("closeDetail").addEventListener("click", () => $("detail").close());
 $("detail").addEventListener("click", (e) => { if (e.target === $("detail")) $("detail").close(); });
+
+$("reloadBtn").addEventListener("click", () => location.reload());
+setInterval(checkForUpdate, 30000);
+window.addEventListener("focus", checkForUpdate);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
 
 loadHealth();
 loadLibraries().catch((e) => ($("formError").textContent = e.message));

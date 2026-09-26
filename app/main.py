@@ -7,10 +7,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
+from app.api.browse import router as browse_router
 from app.api.routes import router
 from app.core.config import Settings, get_settings
 from app.core.instance import BUILD_ID, process_id
@@ -55,10 +56,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/api/") else "no-cache"
         return response
     app.include_router(router)
+    app.include_router(browse_router)
     app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
     def index():
-        return FileResponse(WEB_DIR / "index.html")
+        # The build id goes into the script/style URLs (a new build = new URLs, so a browser can never
+        # pair a new page with an old cached app.js) and into a <meta> tag the page compares with
+        # /api/health to offer a reload when the server was updated (ADR-015).
+        html = (WEB_DIR / "index.html").read_text(encoding="utf-8").replace("__BUILD__", BUILD_ID)
+        return HTMLResponse(html)
 
     return app

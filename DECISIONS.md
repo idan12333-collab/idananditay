@@ -108,6 +108,35 @@ Use this file for decisions that would otherwise be forgotten.
 
 **Tradeoff:** an outdated copy is not killed automatically (the owner closes its window) — explicit and predictable over magical. **Changeable:** could later auto-stop the old copy using the reported pid.
 
+## ADR-014 — In-app folder browser for choosing a photo folder
+**Status:** Accepted (2026-09-26) — UX task, not part of Milestone 2
+
+**Problem:** the native Windows "choose folder" dialog shows folders only, so the owner cannot see the photos inside a folder before choosing it.
+
+**Options considered:** (a) native "open file" dialog and take the file's folder — awkward, cannot force thumbnail view; (b) browser `showDirectoryPicker`/`webkitdirectory` — the browser never reveals the real path and would require uploading the files; (c) desktop shell (Electron/pywebview) — heavy and still uses the same native dialog; (d) **chosen:** a read-only folder browser inside the web UI.
+
+**Decision:** `app/services/folder_browser.py` + `app/api/browse.py` (`GET /api/browse/roots`, `GET /api/browse?path=&offset=&limit=`, `GET /api/browse/thumbnail?path=&v=`). The UI dialog lists quick-access places + drives, subfolders, and a lazily loaded grid of image thumbnails and video tiles (pages of 200, thumbnails requested only near the viewport). "Choose this folder" fills the path field; the native dialog and manual field remain as fallbacks.
+
+**Safety rules:**
+1. Only absolute paths on allowed roots (local fixed/removable drives; configurable `APP_BROWSE_ROOTS`). UNC/network, device paths (`\\?\`, `\\.\`), NTFS alternate data streams, NUL are rejected before touching the disk; the *resolved* path (after symlinks/junctions) must still be inside a root.
+2. Non-media files are skipped by extension without stat/open; videos are only listed (size), never opened; only images are decoded, read-only, into an in-memory 256px JPEG. Nothing is written to disk or to the database.
+3. OneDrive online-only placeholders (`RECALL_ON_DATA_ACCESS`/`RECALL_ON_OPEN`/`OFFLINE` attributes) are shown as cloud tiles and never opened, so browsing never triggers a download.
+4. Requests with `Sec-Fetch-Site` other than `same-origin`/`none` are refused, so another website open in the browser cannot probe local files via `<img>` tags.
+5. Thumbnail URLs are versioned by size+mtime (ADR-012).
+
+**Tradeoffs:** thumbnails are rendered on the fly (~20 ms per 12 MP JPEG; HEIC slower) instead of using the Windows thumbnail cache; network drives are not browsable (manual path still works); the scanner itself still indexes images only and still reads cloud-only files when scanning (existing M1 behaviour — the browser shows how many files are cloud-only). **Changeable:** yes, UI-only feature behind a small API.
+
+## ADR-015 — Page/asset versioning by build + "new version" banner
+**Status:** Accepted (2026-09-26)
+
+**What happened:** after the folder browser was added, the owner saw the new "עיון בתיקיות…" button but clicking it did nothing. Cause: `app.js` had been served (before ADR-013) without any Cache-Control, so Chrome cached it heuristically; a normal refresh reloaded the page (new button) but reused the old cached script (no click handler).
+
+**Decision:**
+1. `index.html` is rendered with the build id: `/static/app.js?v=<build>`, `/static/styles.css?v=<build>` and `<meta name="app-build">`. A new build always means new asset URLs, so a page and its script can never come from different builds.
+2. The page compares its build with `/api/health` on load, every 30 s, and when the tab regains focus; if they differ it shows a banner "יש גרסה חדשה של האפליקציה" with a reload button.
+
+**Tradeoff:** one health request every 30 s (local, negligible). **Changeable:** yes.
+
 ## ADR-011 — Synthetic fixtures instead of real photos in tests
 **Status:** Accepted (2026-09-26)
 

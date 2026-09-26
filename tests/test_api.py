@@ -88,3 +88,17 @@ def test_scan_browse_and_delete(client, library, settings):
     assert list(settings.thumbnails_dir.rglob("*.jpg")) == []
     assert client.get("/api/libraries").json() == []
     assert fingerprint(root) == before
+
+
+def test_index_embeds_build_in_asset_urls(client):
+    """A new build must produce new app.js/styles.css URLs, so a browser can never run an old
+    cached script inside a new page, and the page can detect that the server was updated (ADR-015)."""
+    from app.core.instance import BUILD_ID
+
+    html = client.get("/").text
+    assert "__BUILD__" not in html
+    assert f'/static/app.js?v={BUILD_ID}' in html
+    assert f'/static/styles.css?v={BUILD_ID}' in html
+    assert f'<meta name="app-build" content="{BUILD_ID}">' in html
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert client.get("/api/health").json()["build"] == BUILD_ID
