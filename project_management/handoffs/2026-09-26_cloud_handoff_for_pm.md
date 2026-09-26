@@ -23,7 +23,7 @@ Constraints: no product code, no W2, no invented local state, no merge to `main`
 | `MEMORY.md` | New "Acting owner" section; a Git-verified state bullet (remote, HEAD, commit list); stale "uncommitted / do NOT commit" bullets relabelled as history (`a9783bb`); cloud test result; schema version 2 → 4 (verified in `app/db/database.py`); "no remote" fixed; next action allows Itay's approval |
 | `ACTIVE_WORK.md` | Snapshot (remote, HEAD, only W2 uncommitted); new "Acting owner during the Japan trip" section; commit gate mentions Itay; W1 → DONE `a9783bb`; W3 → DONE `55b7761`; W4 → committed `64d099a`; dependencies updated; reservations: ADR-020 taken, **next free ADR-021**; the rule-1a backlog item → committed `6a7a1eb` |
 | `WORKERS.md` | New permanent "Cloud-worker rule" (owner, mid-task instruction; PM = coordination hub, required handoff format); Dev Reload Worker #1 → work committed `64d099a` (final status for the PM to fill in); W2 marked local-only; a PM #1 → #2 handoff line; a Cloud Handoff Worker #1 entry; a "Roles not yet documented" section (Advisor, Curation lead) |
-| `ROADMAP.md` | M1 header → closed (except W2); filter-review item checked (`a9783bb`); pre-scan exclusions marked unblocked + local-only |
+| `ROADMAP.md` | M1 header → "ALMOST COMPLETE — pending exclusions completion, W2" (NOT closed); filter-review item checked (`a9783bb`); pre-scan exclusions marked unblocked + local-only |
 | `project_management/handoffs/` (new folder) | This note |
 
 Every factual correction is backed by `git log` or the code. No historical text was deleted, only relabelled.

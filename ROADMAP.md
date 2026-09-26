@@ -23,7 +23,7 @@ Guardrails:
 - [x] Add test framework (pytest, synthetic fixture photos)
 - [x] Create basic FastAPI health endpoint (`GET /api/health`)
 
-## Milestone 1 — Photo ingestion & technical filtering ✅ closed 2026-09-26 (except pre-scan exclusions, W2)
+## Milestone 1 — Photo ingestion & technical filtering (ALMOST COMPLETE — pending exclusions completion, W2)
 Customer value: point the app at a library, and it's indexed safely; obvious technical rejects are suggested (never deleted); the user reviews and corrects the suggestions quickly.
 - [x] Scan folder recursively (skips hidden/system folders, Unicode/Hebrew paths)
 - [x] Support JPEG/PNG and practical HEIC handling (+ WebP; HEIC via pillow-heif = POC_ONLY license, see MODEL_REGISTRY)

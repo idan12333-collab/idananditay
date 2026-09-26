@@ -7,7 +7,7 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
 ## Snapshot
 - Branch `main`, pushed to GitHub (`origin` = `idan12333-collab/idananditay`). HEAD = `64d099a` (W4, ADR-020) on top of `6a7a1eb` (PM docs), `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets).
 - Working tree (owner's PC): W1, W3 and W4 are committed. Only W2 (partial) is uncommitted, and it exists ONLY on the owner's PC — not in GitHub. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
-- Milestones: M0 and M1 closed (except W2's pre-scan exclusions). **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
+- Milestones: M0 complete; M1 **almost complete — pending exclusions completion (W2)**. **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
 - Plan usage (shared by all sessions): 5-hour window 58% used, resets 15:40 UTC; weekly 15%.
 
 ## Acting owner during the Japan trip (owner, 2026-09-26)

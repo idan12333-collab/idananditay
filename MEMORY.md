@@ -9,7 +9,7 @@ We are building a general-purpose AI photo curator + album generator. It is not 
 The system searches and curates a large photo library automatically before laying out the album.
 
 ## Current phase
-Milestones 0–1 complete and closed (2026-09-26). Milestone 2 NOT started (owner asked to wait). Only open M1 item: pre-scan exclusions (W2, uncommitted, local-only).
+Milestone 0 complete. Milestone 1 **almost complete — pending exclusions completion** (W2 pre-scan exclusions: uncommitted, exists only on the owner's PC; state unverifiable from the cloud). Milestone 2 NOT started (owner asked to wait).
 
 ## Acting owner (owner, 2026-09-26)
 During the owner's (Idan's) Japan trip, **Itay is the temporary full project owner**: he approves commits, opens/closes workers, changes priorities, approves milestone progression (incl. M2), makes implementation and product decisions, and accepts/rejects Advisor recommendations. Operating details, setup and the PM startup instruction: `HANDOFF_TO_ITAY.md`.
