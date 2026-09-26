@@ -161,6 +161,7 @@ Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation
   - Log + document where the backup was saved and what happened.
   - Automated test: a failed backup → migration not applied, schema version unchanged.
   - If this expands W2's scope significantly, W2 stops and reports to the PM before continuing. The PM must include this in W2's resume message.
+- **Attached (owner-observed 2026-09-26 ~23:55, real incident):** OneDrive cloud-only files hang the scanner. The library root is inside OneDrive; a scan stalled at 1,117/1,124 for several minutes with zero progress and no new log lines — almost certainly a not-yet-downloaded ("cloud-only") file blocking on OS-level download during read. W2 must detect this case in `scanner.py`/`pipeline.py` and surface it in the UI instead of hanging silently: e.g. a visible "מוריד קבצים מ-OneDrive… זה עלול לקחת זמן" state, a per-file timeout that skips the stuck file and records it as an error/retry-later, and never a silent freeze. This upgrades the existing backlog item ("Warn before scanning OneDrive cloud-only files") from unassigned to part of W2's scope. If this expands W2's scope significantly, same rule as above: stop and report to the PM first.
 - Resume condition: W1 committed and verified by the PM → the PM sends "continue" → W2 re-reads the git log, this file, and the shared files → finishes → full suite → owner validates manually → separate commit of W2's hunks.
 - Important: the owner DB goes straight to v4 without a v3 step. v3 must stay additive (`CREATE TABLE IF NOT EXISTS`). Any real data migration must key off table existence or use v5.
 
@@ -202,7 +203,7 @@ Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation
 - ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed), 021 = PM (technical flags demote, not exclude), 022 = curation labels (reserved). **Next free: ADR-023.**
 
 ## Backlog (unassigned, not started)
-- Warn before scanning OneDrive cloud-only files (natural follow-up to W2; assign after W2).
+- ~~Warn before scanning OneDrive cloud-only files~~: moved into W2's scope (see W2 section — real incident 2026-09-26).
 - Calibrate the quality thresholds on a real library (the review labels from W1 make this measurable; do it before or with M2).
 - HEIC decoder licensing (pillow-heif = POC_ONLY).
 - `httpx` TestClient deprecation warning.
