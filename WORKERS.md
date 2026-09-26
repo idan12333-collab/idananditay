@@ -11,7 +11,16 @@ Statuses:
 - FAILED: the work couldn't safely continue.
 
 ## Onboarding step 0: working folder (owner, 2026-09-26)
-Before the interview, the PM checks the new session's cwd with list_sessions. It must be the project folder `C:\Users\idan1\OneDrive\שולחן העבודה\קלוד\אלבום`. If it isn't, the PM's first message tells the worker to switch to that folder itself (the change_directory tool). If the worker can't switch, the PM tells the owner the single action: "reopen the session in the project folder". The PM also files the new session into the right sidebar group. The owner doesn't need to remember any of this.
+Before the interview, the PM checks the new session's cwd with list_sessions. It must be the project folder `C:\Users\idan1\OneDrive\שולחן העבודה\קלוד\אלבום`, OR — for a worker deliberately isolated in a worktree (I-011) — the exact worktree path the PM created for it. If it isn't there yet, the PM's first message tells the worker to switch to that folder itself (the change_directory tool). If the worker can't switch, the PM tells the owner the single action: "reopen the session in the project folder". The owner doesn't need to remember any of this.
+
+**Mandatory last step of EVERY onboarding, no exceptions (owner-flagged 2026-09-26, a real miss on Quality Worker #2 — the owner should never have to remind the PM):** immediately after renaming the session to its worker title — in the SAME batch of tool calls, before sending any brief or task content — the PM calls `ccd_sidebar move_sessions` to file it into "אלבום · פעילים". This is not conditional on remembering it later; it is step 3 of onboarding (see the numbered sequence below), done mechanically every time, worktree or not.
+
+**The fixed onboarding sequence (do all of these, in order, every time):**
+1. Verify/fix cwd (step 0 above).
+2. Rename the session to its worker title (`set_session_title`).
+3. File it into "אלבום · פעילים" (`ccd_sidebar move_sessions`) — right here, not deferred.
+4. Send the brief / start the interview.
+5. Update WORKERS.md (register the worker) and ACTIVE_WORK.md (status) — commit if the change is doc-only.
 
 ## Onboarding rule (owner, 2026-09-26)
 Before a new worker gets implementation responsibility, it must answer, in one concise exchange:
