@@ -58,7 +58,7 @@ Core question: given a large real library and an album request, does the system 
 - [x] Add test framework (pytest, synthetic fixture photos)
 - [x] Create basic FastAPI health endpoint (`GET /api/health`)
 
-## Milestone 1 — Photo ingestion & technical filtering ✅ (closed 2026-09-26: the technical filter is stable enough to continue; curation quality stays open in the Curation Quality Track)
+## Milestone 1 — Photo ingestion & technical filtering ⚠️ REOPENED 2026-09-27 (was marked closed 2026-09-26; owner: "let's admit it, we're back fixing bugs in it now" — honest status, not closed). Real bugs found in the owner's actual use, being fixed now: screenshot detection misses JPEGs at a known screen resolution (mislabeled as exposure issues instead), near-duplicate bursts ~1s apart aren't merged (pHash/dHash AND-threshold too strict for real noisy pairs), and the scan cancel button silently does nothing when a file hangs (pool.map blocks the cancel check). See Quality Worker #2 and W2 in ACTIVE_WORK.md. Will re-close once these are fixed, tested and owner-approved.
 *Definition of done: the technical-filtering implementation is stable enough to continue. It does NOT mean the photo-selection problem is solved; that's tracked by the Curation Quality Track.*
 Customer value: point the app at a library, and it's indexed safely; obvious technical rejects are suggested (never deleted); the user reviews and corrects the suggestions quickly.
 - [x] Scan folder recursively (skips hidden/system folders, Unicode/Hebrew paths)
@@ -77,7 +77,10 @@ Customer value: point the app at a library, and it's indexed safely; obvious tec
 - [x] Owner accepted the filter-review version as good enough to move on (2026-09-26). Further tuning happens later, from real use and more owner feedback. Not a blocker.
 
 ### Filter follow-ups (from the owner's tests, 2026-09-26; to be scheduled later, not blocking)
-- [ ] Screenshot false positives: the rule is "PNG at a phone-screen size without camera EXIF". Real screenshots that contain people (a contact card, an Instagram post) are technically correct flags, but the owner wants them. Revisit with M2/M3 people signals ("screenshot but contains people → suggest keep").
+- [ ] Screenshot false positives (different from the false NEGATIVES below): the rule is "PNG at a phone-screen size without camera EXIF". Real screenshots that contain people (a contact card, an Instagram post) are technically correct flags, but the owner wants them. Revisit with M2/M3 people signals ("screenshot but contains people → suggest keep").
+- [~] **IN PROGRESS 2026-09-27 (M1 reopened, Quality Worker #2):** screenshot false NEGATIVES — JPEGs at a known screen resolution without camera EXIF weren't detected at all and got tagged as exposure issues instead. Confirmed real examples in the owner's library.
+- [~] **IN PROGRESS 2026-09-27 (M1 reopened, Quality Worker #2):** near-duplicate bursts (~1s apart, same camera) aren't merged — pHash fails the ≤8 threshold on ~55 real pairs even though dHash agrees. Fix: time-windowed threshold (ADR-023), not a global relaxation (would cause real false-merges).
+- [~] **IN PROGRESS 2026-09-27 (M1 reopened, W2):** the scan "cancel" button is a silent no-op when a file in the current analysis chunk hangs (e.g. an undownloaded OneDrive file) — `pool.map`'s cancel check never runs until the whole chunk returns.
 - [ ] Calibrate blur (too lenient: IMG_1160 is out of focus and wasn't flagged), brightness (white-background screenshots flagged "too bright"), and the overall technical-quality score, using the owner's review labels / agreement table.
 - [ ] Important photo with weak technical quality: never let technical flags alone exclude a photo that's significant to the request. Once M5 relevance/significance exists, it should be able to override technical suggestions.
 - [ ] Wording review of the filter screen after real use (neutral, non-technical).

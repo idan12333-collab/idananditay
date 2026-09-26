@@ -8,7 +8,7 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
 
 ## >>> PM HANDOFF: READ THIS FIRST, Project Manager #2 (written by PM #1, 2026-09-26 ~23:10) <<<
 - **Why the handoff:** PM #1 reached ~540k context and became the biggest usage consumer (84 requests / 41M cache-read since the 22:10 reset). Per I-010, PM #2 runs on a cheaper model for routine coordination and escalates to a strong model for complex decisions.
-- **Git:** main = origin/main, pushed; HEAD ≥ a08601b. M1 is CLOSED (a398ca7). Only the labeling worker's changes may be uncommitted.
+- **Git:** main = origin/main, pushed; HEAD ≥ a08601b. ~~M1 is CLOSED (a398ca7)~~ **CORRECTION (PM #2, 2026-09-27): M1 REOPENED** — real bugs found in the owner's actual use (screenshot detection, near-duplicate merging, cancel button); see ROADMAP.md M1 section and Quality Worker #2 / W2 below. Only the labeling worker's changes may be uncommitted.
 - **Owner:** Idan flies **Monday 2026-09-28**. From then on **Itay is the acting owner** (HANDOFF_TO_ITAY.md). Only one PM writes to main.
 - **Active:**
   - **עובד תיוג #1** (`local_73ba90f8-59c2-4511-aaaa-be8da01ba263`): schema v5 + ADR-022, bugs fixed, READY FOR RE-TEST (not committed). Root cause of the black screen: library "תמונות" (id 12) had its folder contents replaced at 23:12 without a rescan, so the 78-photo sample pointed at files that no longer exist (404 → black screen). Fixes: missing-file photos are never sampled and are skipped automatically; a "יצירת מדגם חדש" action (old sample kept as .bak, labels kept); a "דלג ←" skip action + ← key; a loading state instead of black on any load failure. 174/174 tests pass (+1). Waiting on the owner's re-test (5 steps, see worker's report) before commit.
@@ -33,7 +33,7 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
 ## Snapshot
 - Branch `main`, pushed to GitHub (`origin` = `idan12333-collab/idananditay`). HEAD = `64d099a` (W4, ADR-020) on top of `6a7a1eb` (PM docs), `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets).
 - Working tree (owner's PC): W1, W3 and W4 are committed. Only W2 (partial) is uncommitted, and it exists ONLY on the owner's PC — not in GitHub. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
-- Milestones: M0 complete; M1 **almost complete — pending exclusions completion (W2)**. **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
+- Milestones: M0 complete; M1 **REOPENED (2026-09-27) — real bugs found in active use: screenshot false negatives, near-duplicate merge gap, cancel-button no-op (Quality Worker #2, W2); also pending exclusions completion (W2)**. **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
 - Plan usage (shared by all sessions): 5-hour window 58% used, resets 15:40 UTC; weekly 15%.
 
 ## Acting owner during the Japan trip (owner, 2026-09-26)
