@@ -92,7 +92,9 @@ async function addLibrary() {
   if (!path) { $("formError").textContent = "יש להזין נתיב לתיקייה"; return; }
   $("addBtn").disabled = true;
   try {
-    const res = await api("/api/libraries", { method: "POST", body: JSON.stringify({ path }) });
+    const body = { path };
+    if (fb.chosen && path === fb.chosen) body.exclude = fbExcludedUnder(fb.chosen);  // ADR-016
+    const res = await api("/api/libraries", { method: "POST", body: JSON.stringify(body) });
     await loadLibraries(res.library.id);
   } catch (e) { $("formError").textContent = e.message; }
   finally { $("addBtn").disabled = false; }
@@ -111,11 +113,32 @@ async function browse(ev) {
 // before choosing. Pages of items are fetched as the user scrolls; thumbnails are requested only
 // when a tile comes near the visible area.
 const FB_PAGE = 200;
-const fb = { path: null, offset: 0, total: 0, loading: false, token: 0, imgObserver: null, pageObserver: null };
+const fb = { path: null, offset: 0, total: 0, loading: false, token: 0, imgObserver: null, pageObserver: null,
+  // Pre-scan exclusions (ADR-016): key (normalized path) -> path as shown. Nothing on disk changes;
+  // the list is sent with "סרוק תיקייה" and stored for that library only.
+  excluded: new Map(), exclusionsLoaded: false, items: [], lastIdx: null, chosen: null };
+const fbKey = (p) => p.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+const fbParentKey = (key) => key.slice(0, key.lastIndexOf("\\"));
+function fbExcludedUnder(folder) {
+  const prefix = fbKey(folder) + "\\";
+  return [...fb.excluded].filter(([k]) => k.startsWith(prefix)).map(([, p]) => p);
+}
+function fbExcludedHere() {
+  const here = fb.path ? fbKey(fb.path) : null;
+  let n = 0;
+  for (const k of fb.excluded.keys()) if (fbParentKey(k) === here) n++;
+  return n;
+}
 const fmtSize = (b) => (b >= 1073741824 ? `${(b / 1073741824).toFixed(1)}GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${Math.max(1, Math.round(b / 1024))}KB`);
 
 async function openFolderBrowser() {
   $("fbDialog").showModal();
+  if (!fb.exclusionsLoaded) {  // folders scanned before: show their earlier marks
+    try {
+      for (const lib of await api("/api/exclusions")) lib.paths.forEach((p) => fb.excluded.set(fbKey(p), p));
+      fb.exclusionsLoaded = true;
+    } catch (_) { /* browsing still works; marks from earlier scans are just not shown */ }
+  }
   if (!fb.imgObserver) {
     fb.imgObserver = new IntersectionObserver((entries) => entries.forEach((en) => {
       if (!en.isIntersecting) return;
@@ -139,7 +162,8 @@ async function openFolderBrowser() {
 
 async function fbNavigate(path, fallback = null) {
   const token = ++fb.token;
-  fb.path = null; fb.offset = 0; fb.total = 0; fb.loading = false;
+  fb.path = null; fb.offset = 0; fb.total = 0; fb.loading = false; fb.items = []; fb.lastIdx = null;
+  $("fbTools").hidden = true;
   fb.imgObserver.disconnect();  // tiles of the previous folder are about to be removed
   $("fbGrid").innerHTML = ""; $("fbFolders").innerHTML = ""; $("fbMsg").textContent = "טוען…";
   $("fbChoose").disabled = true; $("fbMain").scrollTop = 0;
@@ -161,20 +185,25 @@ async function fbNavigate(path, fallback = null) {
   $("fbFolders").innerHTML = res.folders.map((f) => `<button class="fb-folder" data-path="${esc(f.path)}" title="${esc(f.name)}">📁 <span>${esc(f.name)}</span></button>`).join("");
   $("fbFolders").querySelectorAll(".fb-folder").forEach((b) => b.addEventListener("click", () => fbNavigate(b.dataset.path)));
   const c = res.counts;
-  $("fbCounts").textContent = [`${num(c.images)} תמונות`, `${num(c.videos)} סרטונים`, c.folders ? `${num(c.folders)} תתי-תיקיות (ייכללו בסריקה)` : "אין תתי-תיקיות"]
+  fb.countsText = [`${num(c.images)} תמונות`, `${num(c.videos)} סרטונים`, c.folders ? `${num(c.folders)} תתי-תיקיות (ייכללו בסריקה)` : "אין תתי-תיקיות"]
     .concat(c.cloud_only ? [`${num(c.cloud_only)} נמצאים רק בענן`] : []).join(" · ");
+  fbUpdateCounts();
   fbAppend(res);
 }
 
 function fbAppend(res) {
   fb.total = res.total;
   fb.offset = res.offset + res.items.length;
-  $("fbGrid").insertAdjacentHTML("beforeend", res.items.map((it) => {
+  const first = fb.items.length;
+  fb.items.push(...res.items);
+  $("fbTools").hidden = fb.total === 0;
+  $("fbGrid").insertAdjacentHTML("beforeend", res.items.map((it, i) => {
     let inner;
     if (it.kind === "video") inner = `<div class="fb-icon">🎬</div><span class="badge">וידאו</span>`;
     else if (it.cloud_only) inner = `<div class="fb-icon">☁️</div><span class="badge">רק בענן — לא הורד</span>`;
     else inner = `<img data-src="${esc(it.thumbnail_url)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fb-icon',textContent:'⚠️'}))">`;
-    return `<div class="fb-tile ${it.kind}" title="${esc(it.name)} · ${fmtSize(it.size)}">${inner}<div class="fb-name">${esc(it.name)}</div></div>`;
+    const off = fb.excluded.has(fbKey(it.path)) ? " excluded" : "";
+    return `<div class="fb-tile ${it.kind}${off}" data-idx="${first + i}" title="${esc(it.name)} · ${fmtSize(it.size)}">${inner}<div class="fb-name">${esc(it.name)}</div><span class="fb-off">⊘ לא ייכלל</span></div>`;
   }).join(""));
   $("fbGrid").querySelectorAll("img[data-src]:not([src])").forEach((img) => fb.imgObserver.observe(img));
   $("fbMsg").textContent = fb.total === 0
@@ -193,6 +222,84 @@ async function fbLoadPage() {
   finally { if (token === fb.token) fb.loading = false; }
   // If the new page still does not fill the view, keep going.
   if (token === fb.token) { const s = $("fbSentinel").getBoundingClientRect(), m = $("fbMain").getBoundingClientRect(); if (s.top < m.bottom + 800) fbLoadPage(); }
+}
+
+// Pre-scan exclusions (ADR-016). Marks live in this page until "סרוק תיקייה" sends them; the files
+// themselves are never touched. Click = toggle, Shift+click = range (takes the clicked tile's new state).
+function fbUpdateCounts() {
+  const here = fbExcludedHere();
+  $("fbCounts").textContent = (fb.countsText || "") + (here ? ` · ${num(here)} סומנו כלא לכלול בתיקייה זו` : "");
+}
+
+function fbSetMark(it, on) {
+  const k = fbKey(it.path);
+  if (on) fb.excluded.set(k, it.path); else fb.excluded.delete(k);
+}
+
+function fbRefreshTiles() {
+  $("fbGrid").querySelectorAll(".fb-tile").forEach((t) =>
+    t.classList.toggle("excluded", fb.excluded.has(fbKey(fb.items[Number(t.dataset.idx)].path))));
+  fbUpdateCounts();
+}
+
+function fbTileClick(ev) {
+  const tile = ev.target.closest(".fb-tile");
+  if (!tile) return;
+  const idx = Number(tile.dataset.idx);
+  const on = !fb.excluded.has(fbKey(fb.items[idx].path));
+  const [a, b] = ev.shiftKey && fb.lastIdx != null ? [Math.min(fb.lastIdx, idx), Math.max(fb.lastIdx, idx)] : [idx, idx];
+  for (let i = a; i <= b; i++) fbSetMark(fb.items[i], on);
+  fb.lastIdx = idx;
+  fbRefreshTiles();
+}
+
+async function fbExcludeAll() {
+  const path = fb.path, token = fb.token;
+  if (!path) return;
+  $("fbExcludeAll").disabled = true;
+  try {  // every item in this folder, including pages not scrolled to yet
+    for (let offset = 0, total = 1; offset < total; ) {
+      const res = await api(`/api/browse?${new URLSearchParams({ path, offset, limit: 500 })}`);
+      res.items.forEach((it) => fbSetMark(it, true));
+      total = res.total; offset += res.items.length;
+      if (!res.items.length) break;
+    }
+  } catch (e) { $("fbMsg").textContent = e.message; }
+  finally { $("fbExcludeAll").disabled = false; }
+  if (token === fb.token) fbRefreshTiles();
+}
+
+function fbClearMarks() {
+  const here = fbKey(fb.path || "");
+  for (const k of [...fb.excluded.keys()]) if (fbParentKey(k) === here) fb.excluded.delete(k);
+  fb.lastIdx = null;
+  fbRefreshTiles();
+}
+
+async function fbChoose() {
+  if (!fb.path) return;
+  const path = fb.path;
+  fb.chosen = path;
+  $("pathInput").value = path; $("formError").textContent = "";
+  $("fbDialog").close(); $("addBtn").focus();
+  const box = $("scanSummary");
+  box.hidden = false; box.textContent = "סופר תמונות בתיקייה…";
+  try {
+    const s = await api("/api/browse/summary", { method: "POST", body: JSON.stringify({ path, exclude: fbExcludedUnder(path) }) });
+    if (fb.chosen !== path) return;
+    let text = `נמצאו ${num(s.images)} תמונות (כולל תתי-תיקיות) · ${num(s.excluded_images)} לא ייכללו · ${num(s.images_to_scan)} ייסרקו`;
+    if (s.videos) text += ` · ${num(s.videos)} סרטונים (סרטונים עדיין לא נסרקים${s.excluded_videos ? `; ${num(s.excluded_videos)} סומנו כלא לכלול` : ""})`;
+    box.textContent = text;
+  } catch (e) { if (fb.chosen === path) box.textContent = `לא ניתן לספור את התמונות: ${e.message}`; }
+}
+
+// One neutral line in the filter-review card when this library has exclusions (ADR-016).
+async function showExclusionNote(lib) {
+  let n = 0;
+  try { n = (await api(`/api/libraries/${lib}/stats`)).latest_job?.stats?.excluded || 0; } catch (_) { /* no note */ }
+  if (lib !== state.libraryId) return;
+  $("fsExcluded").hidden = !n;
+  $("fsExcluded").textContent = n ? `${num(n)} תמונות לא נכללו בסריקה לפי בחירתך` : "";
 }
 
 // ------------------------------------------------------------------- stats
@@ -604,6 +711,7 @@ async function refreshFilterSummary() {
   try { s = await api(`/api/libraries/${lib}/filter/summary`); } catch (_) { return; }
   if (lib !== state.libraryId) return;  // the library changed or was deleted meanwhile
   $("reviewCard").hidden = false;
+  showExclusionNote(lib);  // ADR-016
   $("fsHeadline").innerHTML = `מתוך <b>${num(s.total)}</b> תמונות: <span class="fs-kept">${num(s.kept)} נשארו בבחירה</span> · <span class="fs-filtered">הסינון הציע להוציא ${num(s.filtered)}</span>
     <div class="fs-sub">שום דבר לא נמחק · אפשר להחזיר כל תמונה · הסינון בודק רק דברים טכניים: עותקים כפולים, צילומי מסך, איכות ותאורה</div>`;
   const f = s.feedback, fixes = f.restored + f.should_filter + f.duplicate_picks_changed;
@@ -792,11 +900,11 @@ $("browseBtn").addEventListener("click", browse);
 $("folderBrowserBtn").addEventListener("click", openFolderBrowser);
 $("fbUp").addEventListener("click", () => { if ($("fbUp").dataset.path) fbNavigate($("fbUp").dataset.path); });
 $("fbClose").addEventListener("click", () => $("fbDialog").close());
-$("fbChoose").addEventListener("click", () => {
-  if (!fb.path) return;
-  $("pathInput").value = fb.path; $("formError").textContent = "";
-  $("fbDialog").close(); $("addBtn").focus();
-});
+$("fbChoose").addEventListener("click", fbChoose);
+$("fbGrid").addEventListener("click", fbTileClick);
+$("fbExcludeAll").addEventListener("click", fbExcludeAll);
+$("fbClearMarks").addEventListener("click", fbClearMarks);
+$("pathInput").addEventListener("input", () => { fb.chosen = null; $("scanSummary").hidden = true; });
 $("librarySelect").addEventListener("change", (e) => selectLibrary(Number(e.target.value)));
 $("rescanBtn").addEventListener("click", async () => { const job = await api(`/api/libraries/${state.libraryId}/scan`, { method: "POST" }); showJob(job); });
 $("cancelBtn").addEventListener("click", async () => { if (state.lastJob) await api(`/api/jobs/${state.lastJob.id}/cancel`, { method: "POST" }); });

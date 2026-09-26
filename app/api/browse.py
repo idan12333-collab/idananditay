@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from app.services import folder_browser as fb
 
@@ -51,6 +52,7 @@ def browse_folder(
     listing["items"] = [
         {
             "name": m.name,
+            "path": m.path,  # used by the UI to mark files to exclude from the scan (ADR-016)
             "kind": m.kind,
             "size": m.size,
             "cloud_only": m.cloud_only,
@@ -74,3 +76,17 @@ def browse_thumbnail(request: Request, path: str, v: str | None = None):
         raise _fail(exc) from exc
     cache = IMMUTABLE_CACHE if v == version else "no-cache"
     return Response(data, media_type="image/jpeg", headers={"Cache-Control": cache, "ETag": f'"{version}"'})
+
+
+class SummaryRequest(BaseModel):
+    path: str
+    exclude: list[str] = []
+
+
+@router.post("/summary")
+def browse_summary(body: SummaryRequest, request: Request) -> dict:
+    """Recursive counts before scanning: found / excluded / will be scanned (ADR-016)."""
+    try:
+        return fb.summarize_folder(body.path, _roots(request), body.exclude)
+    except fb.BrowseError as exc:
+        raise _fail(exc) from exc

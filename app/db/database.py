@@ -8,11 +8,23 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 4  # v3 is reserved for ADR-016 (separate change)
+from app.core.logging import get_logger, log_event
+
+logger = get_logger("db")
+
+# Automatic backups taken right before a schema-changing migration (I-004). Kept next to the DB.
+MAX_MIGRATION_BACKUPS = 5
+
+
+class MigrationBackupError(RuntimeError):
+    """The pre-migration backup could not be made; the migration was NOT applied."""
+
+SCHEMA_VERSION = 4  # v3 (ADR-016): library_exclusions table — additive, created by SCHEMA on every start
 # v4 (2026-09-26): drop photos.is_low_res, quality_score without resolution, review_labels (ADR-017/018)
 
 # Tables whose IDs appear in URLs, labels or projects. AUTOINCREMENT guarantees a deleted ID is
@@ -40,7 +52,7 @@ CREATE TABLE IF NOT EXISTS photos (
     rel_path            TEXT NOT NULL,
     file_size           INTEGER,
     file_mtime          REAL,
-    status              TEXT NOT NULL,          -- ok | error | missing
+    status              TEXT NOT NULL,          -- ok | error | missing | excluded
     error               TEXT,
     content_hash        TEXT,                   -- sha256 of file bytes
     phash               TEXT,                   -- 64-bit perceptual hash (hex)
@@ -91,6 +103,16 @@ CREATE TABLE IF NOT EXISTS duplicate_groups (
     size          INTEGER NOT NULL
 );
 
+-- Files the user chose not to include in this library (ADR-016). Matched by path relative to the
+-- library root; if another file later appears at the same path it is excluded too (by design, MVP).
+CREATE TABLE IF NOT EXISTS library_exclusions (
+    library_id  INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+    rel_key     TEXT NOT NULL,                  -- comparison key (see scanner.exclusion_key)
+    rel_path    TEXT NOT NULL,                  -- as given, '/'-separated
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (library_id, rel_key)
+);
+
 -- Human review labels (ADR-018). Kept apart from the automatic analysis in `photos`, which a label
 -- never modifies. Keyed by file content so a label survives rescans and follows identical copies.
 CREATE TABLE IF NOT EXISTS review_labels (
@@ -133,6 +155,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 class Database:
     def __init__(self, path: Path):
         self.path = Path(path)
+        self.last_backup: Path | None = None  # set when initialize() backed up before a migration
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -153,8 +176,16 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         applied: list[int] = []
         with self.connect() as conn:
-            conn.execute("PRAGMA journal_mode = WAL")
             version = _stored_version(conn)
+        # A migration is about to change an existing database: back it up first, or stop (I-004).
+        # Never on a normal start (version already current) or for a brand-new database.
+        self.last_backup = (
+            backup_before_migration(self.path, version)
+            if version is not None and version < SCHEMA_VERSION
+            else None
+        )
+        with self.connect() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
             if version == 1:
                 _migrate_v1_to_v2(conn)
                 applied.append(2)
@@ -173,6 +204,56 @@ class Database:
     def ping(self) -> bool:
         with self.connect() as conn:
             return conn.execute("SELECT 1").fetchone()[0] == 1
+
+
+def backup_before_migration(db_path: Path, from_version: int, keep: int = MAX_MIGRATION_BACKUPS) -> Path:
+    """Consistent copy of the database (SQLite online-backup API, WAL-safe) in ``<data>/backups``.
+
+    Raises MigrationBackupError if the copy cannot be made or verified. Older backups beyond ``keep``
+    are pruned (a pruning problem is only logged).
+    """
+    backups = db_path.parent / "backups"
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dest = backups / f"{db_path.stem}-v{from_version}-{stamp}.sqlite3"
+    n = 1
+    while dest.exists():
+        n += 1
+        dest = backups / f"{db_path.stem}-v{from_version}-{stamp}-{n}.sqlite3"
+    try:
+        backups.mkdir(parents=True, exist_ok=True)
+        src = sqlite3.connect(db_path)
+        try:
+            dst = sqlite3.connect(dest)
+            try:
+                src.backup(dst)
+                ok = dst.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+            finally:
+                dst.close()
+        finally:
+            src.close()
+        if not ok:
+            raise sqlite3.DatabaseError("backup copy failed its integrity check")
+    except (OSError, sqlite3.Error) as exc:
+        try:
+            dest.unlink(missing_ok=True)
+        except OSError:
+            pass
+        log_event(logger, "migration aborted: backup failed", level=40, db=str(db_path), error=str(exc))
+        raise MigrationBackupError(
+            f"Could not back up the database before upgrading it (from schema v{from_version}); "
+            f"the upgrade was NOT applied. Database: {db_path}. Reason: {exc}"
+        ) from exc
+    log_event(logger, "database backed up before migration", backup=str(dest), from_version=from_version,
+              to_version=SCHEMA_VERSION)
+    old = sorted(backups.glob(f"{db_path.stem}-v*.sqlite3"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for p in old[keep:]:
+        if p == dest:
+            continue
+        try:
+            p.unlink()
+        except OSError as exc:
+            log_event(logger, "could not prune old backup", level=30, path=str(p), error=str(exc))
+    return dest
 
 
 def _stored_version(conn: sqlite3.Connection) -> int | None:

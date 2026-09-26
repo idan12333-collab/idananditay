@@ -25,12 +25,9 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from app.ingest.imaging import to_rgb
-from app.ingest.scanner import IGNORED_DIR_NAMES, SUPPORTED_EXTENSIONS
+from app.ingest.scanner import IGNORED_DIR_NAMES, SUPPORTED_EXTENSIONS, VIDEO_EXTENSIONS, exclusion_key
 
 IMAGE_EXTENSIONS = SUPPORTED_EXTENSIONS
-VIDEO_EXTENSIONS = frozenset(
-    {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".3gp", ".wmv", ".mts", ".m2ts", ".webm", ".mpg", ".mpeg"}
-)
 
 BROWSE_THUMB_SIDE = 256
 MAX_PAGE = 500
@@ -285,3 +282,39 @@ def decode_preview(path: Path, side: int) -> Image.Image:
         img = to_rgb(ImageOps.exif_transpose(im) or im)
     img.thumbnail((side, side), Image.Resampling.LANCZOS)
     return img
+
+
+# ----------------------------------------------------------------- summary
+def summarize_folder(raw: str, roots: list[Path], exclude: list[str]) -> dict:
+    """Recursive pre-scan counts for the "choose folder" summary (ADR-016).
+
+    Uses the scanner's folder rules and looks at names only (no stat/open of any file), so the
+    numbers match what a scan would pick up. ``exclude`` = paths (absolute or relative to the folder)
+    the user marked; only those that actually exist under the folder are counted as excluded.
+    """
+    from app.ingest.scanner import _ignored_dir, is_supported, normalize_exclusion
+
+    folder = resolve_inside_roots(raw, roots)
+    if not folder.is_dir():
+        raise BrowseError("Not a folder")
+    keys = set()
+    for p in exclude:
+        try:
+            keys.add(exclusion_key(normalize_exclusion(folder, p)))
+        except ValueError:
+            continue  # marked outside this folder: not part of this scan
+    counts = {"images": 0, "videos": 0, "excluded_images": 0, "excluded_videos": 0}
+    for dirpath, dirnames, filenames in os.walk(folder, followlinks=False):
+        dirnames[:] = [d for d in dirnames if not _ignored_dir(d)]
+        for name in filenames:
+            if is_supported(name):
+                kind = "images"
+            elif media_kind(name) == "video":
+                kind = "videos"
+            else:
+                continue
+            counts[kind] += 1
+            if keys and exclusion_key(os.path.relpath(os.path.join(dirpath, name), folder)) in keys:
+                counts[f"excluded_{kind}"] += 1
+    counts["images_to_scan"] = counts["images"] - counts["excluded_images"]
+    return {"path": str(folder), **counts}

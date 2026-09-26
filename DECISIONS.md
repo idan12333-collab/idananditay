@@ -137,6 +137,21 @@ Use this file for decisions that would otherwise be forgotten.
 
 **Tradeoff:** one health request every 30 s (local, negligible). **Changeable:** yes.
 
+## ADR-016 — Pre-scan exclusions, stored per library (schema v3)
+**Status:** Accepted (2026-09-26, owner-approved design)
+
+**Decision:** In the folder browser the owner can mark photos/videos "do not include". On "scan", `POST /api/libraries` receives `exclude` (absolute or root-relative paths); they are validated lexically (inside the root, no `..`, photo/video extension; the files are never touched) and stored in `library_exclusions` (library_id, rel_key, rel_path). `exclude` omitted = keep the library's list (path typed by hand); `[]` = clear it. The pipeline loads the list on **every** scan, including "rescan", and the scanner drops matches by relative path **before** any stat/read — excluded files are never analyzed, thumbnailed or deduplicated. Photos indexed earlier and excluded now get status `excluded` (not `missing`), leave duplicate groups, and their thumbnail is released; un-excluding brings them back on the next scan. Deleting the library deletes its list. `POST /api/browse/summary` gives recursive counts (found / excluded / will be scanned) using the scanner's rules, names only. Videos can be excluded too (stored for when video support arrives).
+
+**Known MVP limitation (explicit, owner-accepted):** matching is by relative path, not content. If a different file later appears at the same relative path, it is excluded too. No fingerprint/content identity for now.
+
+**Keys:** '/'-separated, case-insensitive on Windows (`scanner.exclusion_key`).
+
+**Schema:** v3 is additive (`CREATE TABLE IF NOT EXISTS` runs on every start). Existing owner DBs went straight to v4 (ADR-017); nothing may be keyed off "version < 3".
+
+**Also (I-004, owner-approved): automatic backup before a schema-changing migration.** `Database.initialize()` copies the DB with SQLite's online-backup API to `<data_dir>/backups/library-v<old>-<timestamp>.sqlite3` (verified with `quick_check`) **only** when the stored version is older than `SCHEMA_VERSION` — never on a normal start or for a new DB. The last 5 are kept. If the backup fails, the migration is not run: `MigrationBackupError` stops the app with a clear message and the schema version stays unchanged. Logged as "database backed up before migration" / "migration aborted: backup failed".
+
+**Changeable:** yes — the exclusion table is independent; content identity can be added later without changing the API.
+
 ## ADR-011 — Synthetic fixtures instead of real photos in tests
 **Status:** Accepted (2026-09-26)
 

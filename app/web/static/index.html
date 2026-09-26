@@ -23,6 +23,7 @@
       <button id="folderBrowserBtn" class="secondary">עיון בתיקיות…</button>
       <button id="addBtn">סרוק תיקייה</button>
     </div>
+    <div id="scanSummary" class="scan-summary" hidden></div>
     <div class="muted">או: <a href="#" id="browseBtn">חלון הבחירה של Windows</a> / הקלדת נתיב בשדה</div>
     <div id="formError" class="error"></div>
   </section>
@@ -49,6 +50,7 @@
   <section class="card" id="reviewCard" hidden>
     <h2>מה הסינון הציע?</h2>
     <div id="fsHeadline" class="fs-headline"></div>
+    <div id="fsExcluded" class="fs-sub" hidden></div>
     <div id="fsFeedback" class="fs-feedback"></div>
     <div id="fsReasons" class="fs-reasons"></div>
     <div id="fsHint" class="fs-hint"></div>
@@ -176,6 +178,11 @@
     <nav id="fbPlaces" class="fb-places"></nav>
     <div id="fbMain" class="fb-main">
       <div id="fbFolders" class="fb-folders"></div>
+      <div id="fbTools" class="fb-tools" hidden>
+        <span class="muted">לחיצה על תמונה או סרטון = לא לכלול בסריקה · Shift+לחיצה = טווח</span>
+        <button id="fbExcludeAll" class="secondary small">לא לכלול את כל הפריטים בתיקייה</button>
+        <button id="fbClearMarks" class="secondary small">ביטול הסימון בתיקייה</button>
+      </div>
       <div id="fbGrid" class="fb-grid"></div>
       <div id="fbSentinel"></div>
       <div id="fbMsg" class="muted center"></div>

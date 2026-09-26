@@ -160,6 +160,7 @@ class Repository:
             c.execute("DELETE FROM photos WHERE library_id = ?", (library_id,))
             c.execute("DELETE FROM duplicate_groups WHERE library_id = ?", (library_id,))
             c.execute("DELETE FROM jobs WHERE library_id = ?", (library_id,))
+            c.execute("DELETE FROM library_exclusions WHERE library_id = ?", (library_id,))
             c.execute("DELETE FROM libraries WHERE id = ?", (library_id,))
             # Review labels are personal derived data too: drop those no remaining photo refers to.
             c.execute(
@@ -175,6 +176,62 @@ class Repository:
                 for r in c.execute("SELECT DISTINCT thumbnail_path FROM photos WHERE thumbnail_path IS NOT NULL")
             }
         return sorted(thumbs - still_used)
+
+    # --------------------------------------------------------------- exclusions
+    def set_exclusions(self, library_id: int, rel_paths: Iterable[str]) -> int:
+        """Replace the library's exclusion list (paths relative to the root, '/'-separated)."""
+        from app.ingest.scanner import exclusion_key
+
+        rows = {exclusion_key(p): p for p in rel_paths}
+        with self.db.connect() as c:
+            c.execute("DELETE FROM library_exclusions WHERE library_id = ?", (library_id,))
+            c.executemany(
+                "INSERT INTO library_exclusions(library_id, rel_key, rel_path, created_at) VALUES(?, ?, ?, ?)",
+                [(library_id, k, p, now_iso()) for k, p in rows.items()],
+            )
+        return len(rows)
+
+    def get_exclusions(self, library_id: int) -> list[str]:
+        with self.db.connect() as c:
+            return [
+                r[0]
+                for r in c.execute(
+                    "SELECT rel_path FROM library_exclusions WHERE library_id = ? ORDER BY rel_path", (library_id,)
+                )
+            ]
+
+    def get_exclusion_keys(self, library_id: int) -> frozenset[str]:
+        with self.db.connect() as c:
+            return frozenset(
+                r[0] for r in c.execute("SELECT rel_key FROM library_exclusions WHERE library_id = ?", (library_id,))
+            )
+
+    def mark_excluded(self, library_id: int, source_paths: Iterable[str]) -> tuple[int, list[str]]:
+        """Previously indexed files the user has now excluded: status 'excluded' (not 'missing').
+
+        Their thumbnails are released; returns (count, thumbnail paths no longer referenced by any photo).
+        """
+        paths = list(source_paths)
+        if not paths:
+            return 0, []
+        with self.db.connect() as c:
+            thumbs = set()
+            for p in paths:
+                r = c.execute(
+                    "SELECT thumbnail_path FROM photos WHERE library_id = ? AND source_path = ?", (library_id, p)
+                ).fetchone()
+                if r and r[0]:
+                    thumbs.add(r[0])
+            c.executemany(
+                "UPDATE photos SET status = 'excluded', duplicate_group_id = NULL, is_group_best = 0, "
+                "thumbnail_path = NULL WHERE library_id = ? AND source_path = ?",
+                [(library_id, p) for p in paths],
+            )
+            still_used = {
+                r[0]
+                for r in c.execute("SELECT DISTINCT thumbnail_path FROM photos WHERE thumbnail_path IS NOT NULL")
+            }
+        return len(paths), sorted(thumbs - still_used)
 
     # ------------------------------------------------------------------- photos
     def get_file_index(self, library_id: int) -> dict[str, dict]:
@@ -326,6 +383,7 @@ class Repository:
                       COALESCE(SUM(status = 'ok'), 0)                              AS indexed,
                       COALESCE(SUM(status = 'error'), 0)                           AS errors,
                       COALESCE(SUM(status = 'missing'), 0)                         AS missing,
+                      COALESCE(SUM(status = 'excluded'), 0)                        AS excluded_indexed,
                       COALESCE(SUM(status = 'ok' AND is_blurry = 1), 0)            AS blurry,
                       COALESCE(SUM(status = 'ok' AND {extreme_low_res}), 0)        AS extreme_low_res,
                       COALESCE(SUM(status = 'ok' AND {label} IS NOT NULL), 0)      AS reviewed,
@@ -361,6 +419,7 @@ class Repository:
                     (library_id,),
                 )
             ]
+        s["exclusions"] = len(self.get_exclusions(library_id))
         s["duplicate_reduction_pct"] = (
             round(100.0 * s["redundant_duplicates"] / s["indexed"], 1) if s["indexed"] else 0.0
         )

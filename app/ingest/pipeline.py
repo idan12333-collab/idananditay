@@ -18,7 +18,7 @@ from app.core.logging import get_logger, log_event
 from app.db.repository import Repository
 from app.ingest.analyzer import AnalyzeConfig, analyze_file
 from app.ingest.duplicates import find_duplicate_groups
-from app.ingest.scanner import ScannedFile, scan_folder
+from app.ingest.scanner import ScannedFile, exclusion_key, scan_folder
 
 logger = get_logger("ingest.pipeline")
 
@@ -40,6 +40,7 @@ class IngestSummary:
     skipped_unchanged: int = 0
     errors: int = 0
     missing: int = 0
+    excluded: int = 0  # files skipped because the user excluded them (ADR-016)
     duplicate_groups: int = 0
     redundant_duplicates: int = 0
     elapsed_s: float = 0.0
@@ -106,14 +107,33 @@ class IngestionPipeline:
         summary = IngestSummary(library_id=library_id)
 
         progress(phase="scanning")
-        files = scan_folder(root)
+        # User exclusions (ADR-016) are matched by relative path before the scanner touches a file,
+        # so excluded files are never stat-ed, read, analyzed, thumbnailed or deduplicated.
+        excluded_keys = self.repo.get_exclusion_keys(library_id)
+        skipped: list[Path] = []
+        files = scan_folder(root, excluded_keys, skipped)
         summary.files_found = len(files)
+        summary.excluded = len(skipped)
         previous = self.repo.get_file_index(library_id)
         todo = [f for f in files if not _is_unchanged(f, previous.get(str(f.path)))]
         summary.skipped_unchanged = len(files) - len(todo)
         seen = {str(f.path) for f in files}
+
+        def _is_excluded(source_path: str) -> bool:
+            try:
+                return exclusion_key(Path(source_path).relative_to(root).as_posix()) in excluded_keys
+            except ValueError:
+                return False
+
+        gone = [p for p in previous if p not in seen]
+        # Indexed earlier, excluded now: 'excluded' (not 'missing'); its thumbnail is released.
+        _, orphaned = self.repo.mark_excluded(
+            library_id, [p for p in gone if previous[p]["status"] != "excluded" and _is_excluded(p)]
+        )
+        for rel in orphaned:
+            (self.settings.thumbnails_dir / rel).unlink(missing_ok=True)
         summary.missing = self.repo.mark_missing(
-            library_id, [p for p, row in previous.items() if p not in seen and row["status"] != "missing"]
+            library_id, [p for p in gone if previous[p]["status"] != "missing" and not _is_excluded(p)]
         )
         log_event(logger, "scan complete", library_id=library_id, found=len(files), to_analyze=len(todo))
 

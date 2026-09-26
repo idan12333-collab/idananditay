@@ -18,7 +18,7 @@ from app import __version__
 from app.core.instance import APP_NAME, BUILD_ID, process_id
 from app.db.repository import PHOTO_FILTERS, PHOTO_SORTS, REVIEW_REASONS, REVIEW_VERDICTS, Repository
 from app.ingest.imaging import HEIC_SUPPORTED, to_rgb
-from app.ingest.scanner import SUPPORTED_EXTENSIONS
+from app.ingest.scanner import SUPPORTED_EXTENSIONS, normalize_exclusion
 from app.printing.suitability import PrintPolicy, assess
 from app.vision.quality import classical
 
@@ -68,10 +68,16 @@ def _photo_out(p: dict, policy: PrintPolicy) -> dict:
     return p
 
 
+MAX_EXCLUSIONS = 100_000
+
+
 class LibraryCreate(BaseModel):
     path: str
     name: str | None = None
     scan: bool = True
+    # Files not to include (ADR-016): absolute or relative to `path`. None = keep the library's
+    # current list (e.g. a path typed by hand); [] = clear it.
+    exclude: list[str] | None = None
 
 
 @router.get("/health")
@@ -108,10 +114,36 @@ def create_library(body: LibraryCreate, request: Request) -> dict:
     if not path.is_dir():
         raise HTTPException(400, f"Folder not found: {raw}")
     root = path.resolve()
+    exclusions: list[str] | None = None
+    if body.exclude is not None:
+        if len(body.exclude) > MAX_EXCLUSIONS:
+            raise HTTPException(400, f"Too many excluded files (max {MAX_EXCLUSIONS})")
+        try:  # lexical validation only — excluded files are never touched
+            exclusions = [normalize_exclusion(root, p) for p in body.exclude]
+        except ValueError as exc:
+            raise HTTPException(400, f"Invalid excluded file: {exc}") from exc
     repo = _repo(request)
     lib = repo.create_library(str(root), body.name or root.name or str(root))
+    if exclusions is not None:
+        if repo.active_job(lib["id"]):
+            raise HTTPException(409, "A scan is running for this library; wait for it or cancel it first")
+        repo.set_exclusions(lib["id"], exclusions)
     job = request.app.state.jobs.start_scan(lib["id"]) if body.scan else None
-    return {"library": lib, "job": job}
+    return {"library": lib, "job": job, "exclusions": len(repo.get_exclusions(lib["id"]))}
+
+
+@router.get("/exclusions")
+def list_exclusions(request: Request) -> list[dict]:
+    """Every library's exclusion list, as absolute paths (the folder browser pre-marks them)."""
+    repo = _repo(request)
+    out = []
+    for lib in repo.list_libraries():
+        rels = repo.get_exclusions(lib["id"])
+        if rels:
+            root = Path(lib["root_path"])
+            out.append({"library_id": lib["id"], "root_path": lib["root_path"],
+                        "paths": [str(root.joinpath(*r.split("/"))) for r in rels]})
+    return out
 
 
 def _get_library_or_404(request: Request, library_id: int) -> dict:
