@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-26T15:20:00+03:00",
+  "pm": {
+    "name": "project manager",
+    "session_id": "local_c0a790a5-b448-43eb-8131-d1b38c8cc58d",
+    "deep_link": "claude://claude.ai/epitaxy/local_c0a790a5-b448-43eb-8131-d1b38c8cc58d",
+    "transcript_titles": [
+      "project manager"
+    ],
+    "owns": [
+      "MEMORY.md",
+      "ROADMAP.md",
+      "DECISIONS.md",
+      "ACTIVE_WORK.md",
+      "CLAUDE.md",
+      "project_management/daily/**"
+    ]
+  },
+  "overview_hebrew": "קליטת תמונות וסינון בסיסי עובדים ונבדקו (אבני דרך 0–1).\nעכשיו: מסך \"מה הסינון עשה?\" מחכה לבדיקה שלך.\nהבא: חיפוש תמונות לפי תיאור במילים (אבן דרך 2) — רק באישורך.",
+  "project_summary": {
+    "completed": "אבני דרך 0 ו-1 הושלמו ונבדקו על ידך.",
+    "active": "עובד האיכות משפר את מסך בדיקת התמונות לפי ההערות שלך.",
+    "waiting": "עובד ההחרגות ממתין שעובד האיכות יסיים ויבצע commit.",
+    "blocked": "",
+    "needs_owner": "בדיקה ידנית של מסך בדיקת התמונות כשיהיה מוכן.",
+    "next": "אחרי שני העובדים: אישור שלך להתחלת אבן דרך 2 (חיפוש לפי תיאור)."
+  },
+  "workers": [
+    {
+      "id": "W1",
+      "name": "עובד איכות",
+      "session_id": "local_a74829e2-41be-4774-904d-cb88a891e546",
+      "deep_link": "claude://claude.ai/epitaxy/local_a74829e2-41be-4774-904d-cb88a891e546",
+      "transcript_titles": [
+        "עובד איכות"
+      ],
+      "task": "התאמה להדפסה + מסך בדיקת תמונות",
+      "status": "ACTIVE",
+      "now_hebrew": "מעצב מחדש את מסך בדיקת התמונות: תמונה גדולה, רמזור פשוט, בחירת גודל הדפסה.",
+      "current_step": "UX rework",
+      "done": [
+        "דירוג התאמה להדפסה",
+        "תוויות בדיקה אנושיות",
+        "84 בדיקות עוברות"
+      ],
+      "remaining": [
+        "עיצוב מחדש של המסך",
+        "בדיקה ידנית שלך",
+        "commit"
+      ],
+      "owns": [
+        "app/printing/**",
+        "app/vision/**",
+        "app/ingest/analyzer.py",
+        "app/ingest/duplicates.py",
+        "app/ingest/pipeline.py",
+        "app/core/config.py",
+        "app/main.py",
+        "app/__main__.py",
+        "app/api/routes.py",
+        "app/web/static/**",
+        "app/db/database.py",
+        "app/db/repository.py",
+        "tests/test_print_suitability.py",
+        "tests/test_review.py",
+        "tests/test_analysis.py",
+        "tests/test_pipeline.py",
+        "tests/conftest.py",
+        ".env.example",
+        "MEMORY.md",
+        "ROADMAP.md",
+        "DECISIONS.md"
+      ],
+      "depends_on": [],
+      "blocks": [
+        "W2"
+      ],
+      "start_commit": "7927635",
+      "committed": false,
+      "commit": null,
+      "tests": {
+        "result": "passed",
+        "count": 84,
+        "at": "2026-09-26T14:50:00+03:00"
+      },
+      "manual_test": {
+        "status": "required",
+        "steps": [
+          "פתח את האפליקציה",
+          "לחץ על תמונה",
+          "בדוק שהתמונה ממלאת את המסך"
+        ],
+        "note": ""
+      },
+      "awaiting_owner_approval": false,
+      "context": {
+        "percent": 28,
+        "source": "exact",
+        "at": "2026-09-26T15:00:00+03:00"
+      },
+      "next_action": "לסיים את העיצוב ולשלוח לך צעדי בדיקה.",
+      "last_update": {
+        "text": "התחיל עיצוב מחדש אחרי ההערות שלך.",
+        "at": "2026-09-26T15:00:00+03:00"
+      }
+    },
+    {
+      "id": "W2",
+      "name": "עובד החרגות",
+      "session_id": "local_028eae54-f07c-4076-8f47-8692a8134014",
+      "deep_link": "claude://claude.ai/epitaxy/local_028eae54-f07c-4076-8f47-8692a8134014",
+      "transcript_titles": [
+        "עובד החרגות",
+        "החרגת תמונות בסינון"
+      ],
+      "task": "סימון תיקיות/קבצים להחרגה לפני סריקה",
+      "status": "WAITING",
+      "now_hebrew": "ממתין שעובד האיכות יבצע commit.",
+      "depends_on": [
+        "W1"
+      ],
+      "owns": [
+        "app/ingest/scanner.py",
+        "app/services/folder_browser.py",
+        "app/api/browse.py",
+        "app/db/database.py",
+        "app/db/repository.py",
+        "app/ingest/pipeline.py",
+        "app/api/routes.py"
+      ],
+      "committed": false,
+      "tests": {
+        "result": null,
+        "count": null,
+        "at": null
+      },
+      "manual_test": {
+        "status": "not_needed",
+        "steps": []
+      },
+      "context": {
+        "percent": 21,
+        "source": "exact",
+        "at": "2026-09-26T15:00:00+03:00"
+      },
+      "next_action": "ימשיך אחרי ה-commit של עובד האיכות.",
+      "last_update": {
+        "text": "עצר בנקודה בטוחה.",
+        "at": "2026-09-26T14:40:00+03:00"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title_hebrew": "אזהרה לפני סריקת קבצי OneDrive שלא הורדו",
+      "owner": "",
+      "status": "PLANNED",
+      "depends_on": [
+        "W2"
+      ],
+      "created_at": "2026-09-26T14:55:00+03:00",
+      "milestone": "M1 follow-up",
+      "notes": ""
+    }
+  ],
+  "attention": [
+    {
+      "id": "A1",
+      "type": "manual_test",
+      "worker": "W1",
+      "created_at": "2026-09-26T15:10:00+03:00",
+      "text_hebrew": "לבדוק ידנית את מסך בדיקת התמונות החדש",
+      "how_to_act": "כשהעובד יסיים: פתח את האפליקציה ובצע את צעדי הבדיקה שבכרטיס של עובד האיכות."
+    }
+  ],
+  "changes": [
+    {
+      "at": "2026-09-26T15:00:00+03:00",
+      "worker": "W1",
+      "text_hebrew": "עובד האיכות התחיל עיצוב מחדש של מסך הבדיקה"
+    }
+  ],
+  "completed": [
+    {
+      "at": "2026-09-26T12:00:00+03:00",
+      "milestone": "M0-M1",
+      "commit": "2d140af",
+      "text_hebrew": "תשתית + קליטת תמונות"
+    },
+    {
+      "at": "2026-09-26T13:40:00+03:00",
+      "milestone": "M1",
+      "commit": "296d922",
+      "text_hebrew": "תיקון: תיקייה ב' הציגה תמונה של תיקייה א'"
+    },
+    {
+      "at": "2026-09-26T14:30:00+03:00",
+      "milestone": "M1",
+      "commit": "7927635",
+      "text_hebrew": "דפדפן תיקיות בתוך האפליקציה"
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-09-26T14:50:00+03:00",
+      "worker": "W1",
+      "event": "tests_passed",
+      "text_hebrew": "84/84 בדיקות עברו"
+    },
+    {
+      "at": "2026-09-26T15:00:00+03:00",
+      "worker": "W1",
+      "event": "resumed",
+      "text_hebrew": "חזר לעבודה על העיצוב"
+    }
+  ],
+  "plan_usage": {
+    "five_hour_percent": 58,
+    "five_hour_resets_at": "2026-09-26T15:40:00Z",
+    "weekly_percent": 15,
+    "at": "2026-09-26T14:55:00+03:00",
+    "note": ""
+  },
+  "inbox_handled": [],
+  "roadmap_notes": {
+    "M2": [
+      "אישור שלך להתחיל",
+      "שמירת העבודה של עובד האיכות ועובד ההחרגות ב-Git",
+      "בחירת מודל חיפוש עם רישיון מסחרי"
+    ]
+  }
+}

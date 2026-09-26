@@ -68,3 +68,8 @@ test_data/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# --- Project-management dashboard (dev tooling): live PM state and local requests ---
+project_management/state.json
+project_management/state.tmp.json
+project_management/inbox.jsonl

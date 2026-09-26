@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>לוח בקרה — אלבום</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <h1>לוח הבקרה של הפרויקט</h1>
+        <div class="sub" id="freshness">טוען…</div>
+      </div>
+      <div class="top-actions">
+        <a class="btn" id="open-pm" href="#" hidden>פתח את השיחה עם המנהל</a>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="ניווט">
+      <a href="#now">תמונת מצב</a>
+      <a href="#attention">מחכה לך</a>
+      <a href="#workers">עובדים</a>
+      <a href="#roadmap">מפת דרכים</a>
+      <a href="#recent">מה השתנה</a>
+      <a href="#daily">סיכום יום</a>
+      <a href="#tasks">משימות ובקשות</a>
+      <a href="#technical">פרטים טכניים</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <div id="banners"></div>
+
+    <section id="now" class="hero">
+      <div class="hero-label">איפה הפרויקט עומד</div>
+      <div id="overview" class="overview"></div>
+      <div id="overview-meta" class="overview-meta"></div>
+    </section>
+
+    <section id="attention" class="panel attention-panel">
+      <h2>מחכה לך</h2>
+      <div id="attention-list"></div>
+    </section>
+
+    <section id="workers" class="panel">
+      <h2>העובדים</h2>
+      <div id="worker-cards" class="cards"></div>
+    </section>
+
+    <section id="roadmap" class="panel">
+      <h2>מפת דרכים</h2>
+      <div id="roadmap-body"></div>
+    </section>
+
+    <section id="recent" class="panel">
+      <h2>מה השתנה לאחרונה</h2>
+      <div id="changes-body"></div>
+      <h3>מה כבר בוצע</h3>
+      <div id="completed-body"></div>
+    </section>
+
+    <section id="daily" class="panel">
+      <h2>סיכום יום</h2>
+      <div id="daily-body"></div>
+    </section>
+
+    <section id="tasks" class="panel">
+      <h2>משימות ובקשות</h2>
+      <div id="tasks-body"></div>
+      <div class="idea">
+        <p>יש לך רעיון, בקשה או באג? כתוב אותם במילים שלך — המנהל יחליט מתי ומי יטפל בזה.</p>
+        <button class="btn primary" type="button" data-request="new_task">הכן הודעה למנהל: רעיון / בקשה חדשה</button>
+      </div>
+      <details class="quiet-details" id="requests">
+        <summary>בקשות שהכנת למנהל <span id="inbox-count"></span></summary>
+        <p class="hint">הדשבורד לא שולט בשיחות של Claude. כל בקשה כאן היא הודעה מוכנה — צריך להעתיק ולהדביק אותה בשיחה של המנהל.</p>
+        <div class="row-actions">
+          <button class="btn small" type="button" data-request="summarize">הכן הודעה: "סכם לי מה קורה"</button>
+          <button class="btn small" type="button" data-request="daily_summary">הכן הודעה: "צור סיכום יום"</button>
+          <button class="btn small" type="button" data-request="status_request">הכן הודעה: "תן עדכון מצב"</button>
+          <button class="btn small" type="button" data-request="new_worker">הכן הודעה: "צור עובד חדש"</button>
+        </div>
+        <div id="inbox-body"></div>
+      </details>
+    </section>
+
+    <section id="technical" class="panel technical">
+      <details>
+        <summary>פרטים טכניים (Git, תיאום, החלטות)</summary>
+        <div id="technical-body"></div>
+      </details>
+    </section>
+  </main>
+
+  <dialog id="worker-dialog" class="dialog wide" aria-labelledby="wd-title">
+    <div class="dialog-head">
+      <h2 id="wd-title"></h2>
+      <button class="btn ghost" type="button" data-close>סגור</button>
+    </div>
+    <div id="wd-body"></div>
+  </dialog>
+
+  <dialog id="request-dialog" class="dialog" aria-labelledby="rd-title">
+    <form id="request-form">
+      <div class="dialog-head">
+        <h2 id="rd-title">הודעה למנהל</h2>
+        <button class="btn ghost" type="button" data-close>סגור</button>
+      </div>
+      <p class="honest">זה לא שולח ולא מבצע כלום. זה רק מכין הודעה — אתה מעתיק ומדביק אותה בשיחה של המנהל.</p>
+      <p class="hint" id="rd-hint" hidden></p>
+      <label class="field" id="rd-worker-field">עובד
+        <select id="rd-worker"></select>
+      </label>
+      <label class="field" id="rd-text-field"><span id="rd-text-label">טקסט</span>
+        <textarea id="rd-text" rows="4" maxlength="2000"></textarea>
+      </label>
+      <div class="error" id="rd-error" hidden></div>
+      <div class="row-actions">
+        <button class="btn primary" type="submit" id="rd-submit">הכן הודעה להעתקה</button>
+      </div>
+      <div id="rd-result" hidden>
+        <p><strong>ההודעה מוכנה.</strong> העתק אותה והדבק בשיחה של המנהל:</p>
+        <textarea id="rd-copy" rows="3" readonly></textarea>
+        <div class="row-actions">
+          <button class="btn primary" type="button" id="rd-copy-btn">העתק</button>
+          <a class="btn" id="rd-open-pm" href="#">פתח את השיחה עם המנהל</a>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
