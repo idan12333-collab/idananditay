@@ -117,3 +117,40 @@ def test_main_writes_report_without_file_names(db_path, tmp_path):
     report = (out / "round0_2026-09-27.md").read_text(encoding="utf-8")
     assert "M2 special moments lost" in report and ".jpg" not in report
     assert "2.jpg" in (out / "local" / "round0_2026-09-27_failures.csv").read_text(encoding="utf-8-sig")
+
+
+# ------------------------------------------------------------------ M5 duplicate review
+def test_m5_select_build_and_score(db_path, tmp_path):
+    from evaluation import m5_review as r
+
+    conn = m.connect_ro(db_path)
+    try:
+        # Group 7 holds an alternate (photo 4) the owner labeled "maybe" -> selected even without a sample.
+        groups = r.select_groups(conn, 1, None)
+    finally:
+        conn.close()
+    assert [(g["id"], g["why"]) for g in groups] == [(7, "wanted_alternate")]
+    assert [mm["id"] for mm in groups[0]["members"]] == [4, 5]
+    page = r.build_html(groups, tmp_path, 1)  # thumbnails missing -> empty src, must not fail
+    assert 'name="same_7"' in page and 'name="best_7"' in page and "fetch(" not in page
+    s = r.score(groups, {"answers": [{"group_id": 7, "same": "same", "best": 4}, {"group_id": 99, "same": "same", "best": 1}]})
+    assert s["answered"] == 1 and (s["keeper_agreement"].k, s["keeper_agreement"].n) == (1, 1)
+    assert s["merged_moments"].k == 0
+    s = r.score(groups, {"answers": [{"group_id": 7, "same": "partial", "best": 5}]})
+    assert s["not_same_ids"] == [7] and s["keeper_agreement"].n == 0
+
+
+def test_m5_score_from_page_without_db(db_path, tmp_path):
+    """Scoring must not depend on the live DB: a rescan renumbers groups (the review page is the snapshot)."""
+    from evaluation import m5_review as r
+
+    conn = m.connect_ro(db_path)
+    try:
+        groups = r.select_groups(conn, 1, None)
+    finally:
+        conn.close()
+    back = r.groups_from_html(r.build_html(groups, tmp_path, 1))
+    assert [(g["id"], g["member_ids"], g["auto_best_photo_id"]) for g in back] == [(7, [4, 5], 4)]
+    assert r.snapshot(groups)[0]["member_ids"] == [4, 5]
+    s = r.score(back, {"answers": [{"group_id": 7, "same": "same", "best": 5}]})
+    assert s["keeper_miss_ids"] == [7]
