@@ -14,7 +14,7 @@ Last updated: 2026-09-26 ~14:55 (PM). Git-verified corrections by Cloud Handoff 
   - **עובד תיוג #1**: **DONE — committed as `8454783`** (schema v5, ADR-022), staged-only check green (174 tests), not yet pushed at report time (PM pushed it). Flagged a real privacy issue: his CSV export (`curation_labels_14.csv`, real file names) was untracked in the repo root — PM added `curation_labels_*.csv` to `.gitignore` so it can never be committed by accident. Worker's scope is complete; closing it (see Workers section).
   - **Idan:** importing ~500 ORIGINAL photos (evaluation/LIBRARY_SPEC.md) and then labels the ~300-photo seed BEFORE the flight.
 - **Waiting (wake at checkpoints only):**
-  - **אחראי בקרת איכות תמונות #1** (`local_eaba79d0-…`): next is evaluation/metrics.py, the round-0 baseline, after the worker's v5 commit + the seed labels.
+  - **אחראי בקרת איכות תמונות #1** (`local_eaba79d0-…`): **ACTIVE (2026-09-27)** — both blockers cleared (v5 committed `8454783`, owner labeled 220 real photos). Started on round-0 baseline: `evaluation/metrics.py`, joins curation_labels × filter outcome × duplicate_picks, writes `evaluation/reports/round0_<date>.md` (M1-M5, M8, failure-mode log per EVAL_PLAN.md).
   - **יועץ מוצר ויעילות #1** (`local_3c7e1461-…`).
   - **Cloud Worker #1** ("פרויקט ביקורת ענן"): no task. The owner relays messages; the PM writes the exact text.
 - **Next after the seed:** baseline (curation lead) → the 7a POC (SigLIP 2 base vs OpenCLIP XLM-R B/32; verify licenses locally first) → Advisor review → I-013 concierge album (gated) → 7b people POC. Itay's second library (I-016) needs Itay's consent.
