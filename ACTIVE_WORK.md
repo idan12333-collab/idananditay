@@ -173,7 +173,15 @@ Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation
 - Safety: the owner's DB was backed up before the v4 migration: `%USERPROFILE%\.ai-photo-album\backups\library_before_v4_2026-09-26.sqlite3` (116 photos).
 - Known finding (not a bug, calibration later): the 160-px files get sharpness 100/100.
 
-### W2: OneDrive-hang + cancel-button fix (renamed — pre-scan exclusions itself is DONE). Status: ACTIVE, backend fix in progress
+### W2: OneDrive-hang + cancel-button fix (renamed — pre-scan exclusions itself is DONE). Status: implementation DONE, NOT committed — waiting on the owner's manual test
+- **Finished (2026-09-27):** full suite 188/188 pass, no leftover pytest processes. 8 new tests (`tests/test_scan_robustness.py`): stuck-file timeout completes the scan (both the thread and pool paths), cancel works within <5s even with a stuck file, a "waiting_file" phase appears/clears, a timed-out file is retried on rescan, no orphaned worker process, cloud-only files are never read and get picked up once they're actually local. One unrelated flaky test noted once (`test_post_requires_same_origin_and_json`, `ConnectionAbortedError`, not reproduced since, not this worker's code).
+- Speed: 450 photos / 7 workers, ~19-26s now vs ~25-28s before (no regression).
+- Files: `app/ingest/pipeline.py`, `app/ingest/scanner.py`, `app/services/folder_browser.py`, `app/core/config.py` (new `analyze_file_timeout_s=120`), `app/web/static/app.js`+`index.html`, `DECISIONS.md` (ADR-016 addendum), `tests/test_scan_robustness.py`. Confirmed NOT touching `.gitignore`/`evaluation/**` (Curation Lead #1's files) — no conflict.
+- **Owner check steps:**
+  1. On a folder inside OneDrive: right-click 2-3 photos → "Free up space" (so they become cloud-only). Scan that folder.
+  2. Confirm the scan finishes without hanging, and shows "X תמונות נמצאות רק ב-OneDrive ולא נסרקו…".
+  3. Right-click those same photos → "Always keep on this device", rescan — they now appear in the gallery.
+  4. Start scanning a large folder and click "ביטול" (cancel) — the scan stops within 1-2 seconds.
 - **CORRECTION (PM #2, 2026-09-27, caught by the worker re-syncing before starting — the brief below was stale):** pre-scan exclusions (wiring, API, UI, tests, ADR-016, I-004 backup) is **already committed as `e806743`, on main, owner-approved via PM #1.** The "Remaining: wiring..." line was wrong/outdated; removed. W2's actual current scope is ONLY the two fixes below.
 - Session: "עובד החרגות" (`local_028eae54-f07c-4076-8f47-8692a8134014`). Mode: auto.
 - Scope now: (1) the scan cancel-button no-op bug, (2) OneDrive cloud-only file hang — both diagnosed below.
