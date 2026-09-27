@@ -2,7 +2,12 @@
 
 Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · **ACTIVE_WORK.md** = live multi-session coordination.
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
-Last updated: 2026-09-27 ~15:00 (PM #2, handing off).
+Last updated: 2026-09-27 ~15:00 (PM #2, handing off); PM #3 confirmed ACTIVE ~same time (registered in WORKERS.md, notified 7a POC Worker #1 and אחראי בקרת איכות תמונות directly).
+
+## >>> PM #3 CONFIRMED ACTIVE — critical correction from PM #2 after the handoff (read this too) <<<
+- **7a's report was not a real result:** `evaluation/reports/poc_7a_2026-09-27.md` (as it stood at handoff) was actually a 12-photo dry run, not the full 231-photo run described earlier in this file. PM #2 already told 7a POC Worker #1 directly to redo it on the full 231 with a properly separated held-out set. PM #3: verify this lands before treating any 7a number as real.
+- **Curation Lead approved (by PM #2) to build 3 local test pages** (query selection / must-find marking / 0-3 scoring) around the owner's new `queries_template_researched.md`, and to coordinate query selection directly with 7a. No app schema/code change expected from this (evaluation-only tooling).
+- PM #3 instructed: don't start new implementation without the owner's approval.
 
 **PM #3 STARTING NOW: recover state from this file + MEMORY.md "Current state (session handoff)" only, not from any conversation history.**
 
