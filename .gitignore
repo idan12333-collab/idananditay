@@ -73,3 +73,7 @@ desktop.ini
 project_management/state.json
 project_management/state.tmp.json
 project_management/inbox.jsonl
+
+# --- Owner's curation label exports: contain his real file names, never commit (flagged by
+#     Labeling Worker #1, 2026-09-27) ---
+curation_labels_*.csv
