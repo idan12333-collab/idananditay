@@ -152,6 +152,16 @@ Use this file for decisions that would otherwise be forgotten.
 
 **Changeable:** yes — the exclusion table is independent; content identity can be added later without changing the API.
 
+**Addendum (2026-09-27) — a stuck file must not freeze a scan; OneDrive online-only files are not read.**
+*Incident:* a scan of a OneDrive folder stopped at 1,117/1,124 with no log lines, and "ביטול" did nothing. Causes: (1) `pool.map` returns results in order, so one file blocked in the OS (Windows downloading an online-only file) held back every later result — progress froze; (2) the cancel check ran only between results, and `shutdown(wait=True)` then waited forever on the stuck worker.
+*Decision:*
+1. Analysis runs as individually submitted futures (one per worker, no queue behind a stuck worker), collected in completion order with a 0.5 s heartbeat. Cancel is honoured within ~0.5 s. Small/one-worker scans run each file in a daemon thread with the same heartbeat.
+2. Per-file timeout `analyze_file_timeout_s` (default 120 s; 0 = off): the file is recorded as an error ("Timed out … may be downloading from OneDrive") and the scan continues; a rescan retries it (error status is never "unchanged"). The clock starts only once worker processes are up (30 s grace). Stuck worker processes are terminated at the end/cancel (taken before `shutdown()`, which forgets them); a stuck thread is abandoned as a daemon.
+3. After 10 s without any finished file the job phase is `waiting_file` → UI "ממתין לקובץ… (אם התיקייה ב-OneDrive, ייתכן שהקובץ יורד מהענן)".
+4. **Owner decision (option A):** OneDrive online-only files (`RECALL_ON_DATA_ACCESS`/`RECALL_ON_OPEN`/`OFFLINE`, read from the stat the scanner already does) are never opened during a scan. They are counted (`IngestSummary.cloud_only`), not indexed and not marked missing (an earlier record is kept), and the finished scan shows: "X תמונות נמצאות רק ב-OneDrive ולא נסרקו. כדי לכלול אותן: קליק ימני על התיקייה ← 'שמור תמיד במכשיר זה', ואז סריקה מחדש." The next scan picks them up once they are local.
+5. The UI polls the job immediately when the tab becomes visible again (browsers slow timers in background tabs).
+*Tradeoff:* per-file submission costs a little IPC; measured on 450 photos with 7 workers: 19–26 s vs 25–28 s before (no slowdown). `ProcessPoolExecutor._processes` is private API (stable 3.8–3.13).
+
 ## ADR-011 — Synthetic fixtures instead of real photos in tests
 **Status:** Accepted (2026-09-26)
 

@@ -14,7 +14,8 @@ const SIGNAL_HE = {
   "Overexposed": ["בהירה מדי", "warn"],
 };
 const PHASE_HE = { starting: "מתחיל", scanning: "סורק תיקיות", analyzing: "מנתח תמונות",
-  deduplicating: "מאתר כפילויות", done: "הסתיים", failed: "נכשל", cancelled: "בוטל" };
+  deduplicating: "מאתר כפילויות", done: "הסתיים", failed: "נכשל", cancelled: "בוטל",
+  waiting_file: "ממתין לקובץ… (אם התיקייה ב-OneDrive, ייתכן שהקובץ יורד מהענן)" };
 const DATE_SRC_HE = { exif: "EXIF (מהמצלמה)", filename: "משם הקובץ", file_mtime: "תאריך שינוי קובץ (לא אמין)" };
 
 async function api(path, opts = {}) {
@@ -361,6 +362,12 @@ function showJob(job) {
   if (job.status === "failed") text = `הסריקה נכשלה: ${job.message}`;
   if (job.status === "interrupted") text = "הסריקה הקודמת נקטעה — לחץ 'סריקה מחדש'";
   $("jobText").textContent = text;
+  // OneDrive online-only files are not read during a scan (owner decision, 2026-09-27).
+  const cloud = job.status === "done" ? job.stats?.cloud_only || 0 : 0;
+  $("jobCloud").hidden = !cloud;
+  $("jobCloud").textContent = cloud
+    ? `${num(cloud)} תמונות נמצאות רק ב-OneDrive ולא נסרקו. כדי לכלול אותן: קליק ימני על התיקייה ← 'שמור תמיד במכשיר זה', ואז סריקה מחדש.`
+    : "";
 
   if (active && !state.pollTimer) {
     state.pollTimer = setInterval(pollJob, 1000);
@@ -1095,6 +1102,8 @@ if (document.querySelector('meta[name="app-dev-reload"]')) {
 }
 window.addEventListener("focus", checkForUpdate);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+// Chrome slows timers in background tabs; refresh scan progress as soon as the tab is visible again.
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.pollTimer) pollJob(); });
 
 loadHealth();
 loadLibraries().catch((e) => ($("formError").textContent = e.message));

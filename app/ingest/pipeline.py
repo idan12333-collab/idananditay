@@ -9,7 +9,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable, Iterator
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -24,6 +24,13 @@ logger = get_logger("ingest.pipeline")
 
 BATCH_SIZE = 50
 PROGRESS_INTERVAL_S = 0.5
+# How often the analysis loop wakes up while waiting for results, so cancel is honoured promptly and
+# progress stays live even when one file is slow (e.g. OneDrive downloading it).
+POLL_S = 0.5
+# After this long without any finished file, the job reports that it is waiting for a slow file.
+SLOW_NOTICE_S = 10.0
+# Worker processes take a few seconds to start (imports); timeouts are not counted before then.
+POOL_STARTUP_GRACE_S = 30.0
 
 ProgressCallback = Callable[..., None]
 
@@ -41,6 +48,7 @@ class IngestSummary:
     errors: int = 0
     missing: int = 0
     excluded: int = 0  # files skipped because the user excluded them (ADR-016)
+    cloud_only: int = 0  # OneDrive online-only files: not read (reading = download/hang); rescan once local
     duplicate_groups: int = 0
     redundant_duplicates: int = 0
     elapsed_s: float = 0.0
@@ -78,18 +86,67 @@ class IngestionPipeline:
             blur_threshold=s.blur_threshold,
         )
 
-    def _analyze_all(self, paths: list[str], workers: int) -> Iterator[dict]:
+    def _analyze_all(self, paths: list[str], workers: int) -> Iterator[dict | None]:
+        """Analysis records in *completion* order, plus ``None`` heartbeats every POLL_S.
+
+        Heartbeats let the caller check cancel and report progress while a file is slow; results are
+        not held back behind a slow file (the old in-order ``pool.map`` froze progress AND cancel).
+        A file that takes longer than ``analyze_file_timeout_s`` yields an error record and is
+        abandoned; the scan continues and a rescan retries it.
+        """
         config = self.analyze_config()
+        timeout = self.settings.analyze_file_timeout_s or None
         if workers <= 1 or len(paths) < 8:
-            for p in paths:
-                yield analyze_file(p, config)
+            yield from _analyze_in_thread(paths, config, timeout)
             return
         pool = ProcessPoolExecutor(max_workers=workers)
+        pending = iter(paths)
+        inflight: dict[Future, str] = {}
+        started: dict[Future, float] = {}
+        hung = False
+        pool_started = time.monotonic()
+        workers_up = False  # set by the first finished file: from then on the pool is really running
+
+        def fill() -> None:
+            # At most one file per worker: nothing waits in the pool's queue behind a stuck worker,
+            # so "running" really means running and the per-file clock is fair.
+            for p in pending:
+                inflight[pool.submit(analyze_file, p, config)] = p
+                if len(inflight) >= workers:
+                    break
+
         try:
-            yield from pool.map(analyze_file, paths, [config] * len(paths), chunksize=4)
+            fill()
+            while inflight:
+                done, _ = wait(inflight, timeout=POLL_S, return_when=FIRST_COMPLETED)
+                workers_up = workers_up or bool(done)
+                for fut in done:
+                    path = inflight.pop(fut)
+                    started.pop(fut, None)
+                    try:
+                        yield fut.result()
+                    except Exception as exc:  # a crashed worker must not stop the scan
+                        yield _error_record(path, f"{type(exc).__name__}: {exc}")
+                now = time.monotonic()
+                clock_on = workers_up or now - pool_started > POOL_STARTUP_GRACE_S
+                for fut in list(inflight):
+                    if fut.running() and clock_on:
+                        started.setdefault(fut, now)
+                    if timeout and now - started.get(fut, now) > timeout:
+                        path = inflight.pop(fut)
+                        started.pop(fut, None)
+                        hung = True
+                        yield _timeout_record(path, timeout)
+                fill()
+                if not done:
+                    yield None
         finally:
-            # On cancel/error, drop queued work instead of finishing the whole library.
-            pool.shutdown(wait=True, cancel_futures=True)
+            # On cancel/error/timeout, drop queued work; never wait on a worker that is stuck in a read
+            # (that wait would never return, which is what made "cancel" a no-op).
+            stuck = hung or bool(inflight)
+            procs = _worker_processes(pool) if stuck else []  # shutdown() forgets them, so take them first
+            pool.shutdown(wait=not stuck, cancel_futures=True)
+            _terminate(procs)
 
     def run(
         self,
@@ -115,8 +172,14 @@ class IngestionPipeline:
         summary.files_found = len(files)
         summary.excluded = len(skipped)
         previous = self.repo.get_file_index(library_id)
-        todo = [f for f in files if not _is_unchanged(f, previous.get(str(f.path)))]
-        summary.skipped_unchanged = len(files) - len(todo)
+        # OneDrive "online-only" files are never opened: reading one makes Windows download it, which
+        # can take minutes or hang (real incident 2026-09-26). An earlier index record, if any, is
+        # kept as is; the owner is told how to make them local, and the next scan picks them up.
+        cloud = [f for f in files if f.cloud_only and not _is_unchanged(f, previous.get(str(f.path)))]
+        summary.cloud_only = len(cloud)
+        cloud_paths = {str(f.path) for f in cloud}
+        todo = [f for f in files if str(f.path) not in cloud_paths and not _is_unchanged(f, previous.get(str(f.path)))]
+        summary.skipped_unchanged = len(files) - len(todo) - len(cloud)
         seen = {str(f.path) for f in files}
 
         def _is_excluded(source_path: str) -> bool:
@@ -135,20 +198,32 @@ class IngestionPipeline:
         summary.missing = self.repo.mark_missing(
             library_id, [p for p in gone if previous[p]["status"] != "missing" and not _is_excluded(p)]
         )
-        log_event(logger, "scan complete", library_id=library_id, found=len(files), to_analyze=len(todo))
+        log_event(logger, "scan complete", library_id=library_id, found=len(files), to_analyze=len(todo),
+                  cloud_only=len(cloud))
 
         workers = self.settings.effective_workers()
         summary.workers = workers
-        done = summary.skipped_unchanged
+        done = summary.skipped_unchanged + summary.cloud_only
         progress(phase="analyzing", total=len(files), processed=done, skipped=summary.skipped_unchanged, errors=0)
 
         batch: list[dict] = []
         last_report = 0.0
         ta = time.perf_counter()
+        last_result = time.perf_counter()
+        waiting = False
         for rec in self._analyze_all([str(f.path) for f in todo], workers):
             if cancel is not None and cancel.is_set():
                 self.repo.upsert_photos(library_id, batch)
                 raise IngestCancelled()
+            if rec is None:  # heartbeat: nothing finished in the last POLL_S
+                if not waiting and time.perf_counter() - last_result > SLOW_NOTICE_S:
+                    waiting = True
+                    progress(phase="waiting_file", processed=done, errors=summary.errors)
+                continue
+            last_result = time.perf_counter()
+            if waiting:
+                waiting = False
+                progress(phase="analyzing")
             rec["rel_path"] = Path(rec["source_path"]).relative_to(root).as_posix()
             if rec["status"] == "error":
                 summary.errors += 1
@@ -203,3 +278,60 @@ def refresh_duplicate_groups(settings: Settings, repo: Repository) -> int:
     for lib in libraries:
         pipeline.update_duplicates(lib["id"])
     return len(libraries)
+
+
+def _error_record(path: str, error: str) -> dict:
+    return {"source_path": path, "status": "error", "error": error}
+
+
+def _timeout_record(path: str, timeout: float) -> dict:
+    log_event(logger, "file timed out", level=30, path=path, timeout_s=timeout)
+    return _error_record(
+        path, f"Timed out after {timeout:g} s (the file may be downloading from OneDrive); a rescan retries it"
+    )
+
+
+def _analyze_in_thread(paths: list[str], config: AnalyzeConfig, timeout: float | None) -> Iterator[dict | None]:
+    """Small scans / one worker: analyze in a daemon thread so a stuck read can be abandoned.
+
+    A thread blocked in the OS cannot be killed; it is left behind as a daemon (it never keeps the
+    app from exiting) and the scan moves on.
+    """
+    for path in paths:
+        box: dict = {}
+
+        def work(p: str = path) -> None:
+            try:
+                box["rec"] = analyze_file(p, config)
+            except Exception as exc:
+                box["rec"] = _error_record(p, f"{type(exc).__name__}: {exc}")
+
+        t = threading.Thread(target=work, name="analyze-file", daemon=True)
+        t0 = time.monotonic()
+        t.start()
+        while True:
+            t.join(POLL_S)
+            if not t.is_alive():
+                yield box["rec"]
+                break
+            if timeout and time.monotonic() - t0 > timeout:
+                yield _timeout_record(path, timeout)
+                break
+            yield None
+
+
+def _worker_processes(pool: ProcessPoolExecutor) -> list:
+    """The pool's worker processes. No public API; ``_processes`` is stable across 3.8-3.13 and is
+    cleared by ``shutdown()``, so it must be read before."""
+    return list((getattr(pool, "_processes", None) or {}).values())
+
+
+def _terminate(procs: list) -> None:
+    """Kill worker processes that are still running (e.g. blocked reading a cloud-only file);
+    left alive they would also keep the app from exiting."""
+    for proc in procs:
+        try:
+            if proc.is_alive():
+                proc.terminate()
+        except Exception:  # best effort: the scan result is already safe in the database
+            pass

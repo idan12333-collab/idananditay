@@ -21,11 +21,32 @@ MEDIA_EXTENSIONS = SUPPORTED_EXTENSIONS | VIDEO_EXTENSIONS
 IGNORED_DIR_NAMES = frozenset({"@eaDir", "$RECYCLE.BIN", "System Volume Information", "__MACOSX", ".thumbnails"})
 
 
+# Windows cloud-file attributes (winnt.h). A OneDrive "online-only" placeholder has one of these:
+# opening its data makes Windows download it first, which can take very long or hang.
+FILE_ATTRIBUTE_OFFLINE = 0x1000
+FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x40000
+FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x400000
+CLOUD_ONLY_MASK = FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+
+
+def is_cloud_only(attributes: int) -> bool:
+    return bool(attributes & CLOUD_ONLY_MASK)
+
+
+def file_attributes(st: os.stat_result) -> int:
+    return getattr(st, "st_file_attributes", 0)  # 0 on non-Windows
+
+
+def _is_cloud_only_file(path: Path, st: os.stat_result) -> bool:
+    return is_cloud_only(file_attributes(st))
+
+
 @dataclass(frozen=True)
 class ScannedFile:
     path: Path
     size: int
     mtime: float
+    cloud_only: bool = False  # from the stat the scanner does anyway: no extra I/O, no download
 
 
 def _ignored_dir(name: str) -> bool:
@@ -96,5 +117,6 @@ def scan_folder(
             except OSError as exc:
                 log_event(logger, "cannot stat file", level=30, path=str(path), error=str(exc))
                 continue
-            found.append(ScannedFile(path=path, size=st.st_size, mtime=st.st_mtime))
+            found.append(ScannedFile(path=path, size=st.st_size, mtime=st.st_mtime,
+                                     cloud_only=_is_cloud_only_file(path, st)))
     return found

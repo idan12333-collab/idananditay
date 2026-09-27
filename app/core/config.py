@@ -47,6 +47,9 @@ class Settings(BaseSettings):
 
     # Ingestion
     ingest_workers: int = 0  # 0 = auto
+    # A file whose analysis takes longer than this is recorded as an error and skipped (rescan
+    # retries it) instead of freezing the scan, e.g. a OneDrive file stuck downloading. 0 = off.
+    analyze_file_timeout_s: float = 120.0
     thumbnail_size: int = 480
     thumbnail_quality: int = 85
     analysis_max_side: int = 1024

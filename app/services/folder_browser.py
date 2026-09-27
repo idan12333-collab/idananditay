@@ -37,10 +37,13 @@ IS_WINDOWS = sys.platform == "win32"
 # Windows file attributes (winnt.h).
 FILE_ATTRIBUTE_HIDDEN = 0x2
 FILE_ATTRIBUTE_SYSTEM = 0x4
-FILE_ATTRIBUTE_OFFLINE = 0x1000
-FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x40000
-FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x400000
-CLOUD_ONLY_MASK = FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+from app.ingest.scanner import (  # noqa: E402  (shared with the scanner; re-exported here)
+    CLOUD_ONLY_MASK,
+    FILE_ATTRIBUTE_OFFLINE,
+    FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS,
+    FILE_ATTRIBUTE_RECALL_ON_OPEN,
+    is_cloud_only,
+)
 
 
 class BrowseError(Exception):
@@ -65,10 +68,6 @@ def media_kind(name: str) -> str | None:
     if ext in VIDEO_EXTENSIONS:
         return "video"
     return None
-
-
-def is_cloud_only(attributes: int) -> bool:
-    return bool(attributes & CLOUD_ONLY_MASK)
 
 
 def _attributes(st: os.stat_result) -> int:
