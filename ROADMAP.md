@@ -125,6 +125,7 @@ Customer value: "the Japan trip", "birthdays", "2026" become findable groups.
 - [ ] Semantic cluster refinement
 - [ ] Event browser
 - [ ] Year/month/event coverage metrics
+- [ ] **Same-session/burst grouping beyond pixel-duplicates (owner-requested 2026-09-27):** photos from the same shooting moment where the subject moved or the camera distance/framing changed are NOT pixel-near-duplicates — pHash/dHash correctly won't (and structurally can't safely) merge them; relaxing the duplicate threshold further risks merging genuinely different photos (a real false-merge case was already found and avoided, see DECISIONS.md ADR-023). This needs semantic/content similarity + tight time-proximity, i.e. real event/session clustering, not a duplicate-detection tweak. Keep this distinct from M1's duplicate detection.
 
 ## Milestone 4.5 — Album request understanding
 Customer value: the user writes a request in their own words, and the system knows who / when / where / what theme / how big.
