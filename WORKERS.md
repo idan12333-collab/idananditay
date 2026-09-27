@@ -162,3 +162,8 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Session: "7a POC Worker #1" (`local_e97680e0-4761-4d15-9cbc-064e0d420576`). Mode: auto. Started: 2026-09-27 ~08:43.
 - Scope: verify SigLIP 2 base's and OpenCLIP xlm-roberta-base-ViT-B-32's licenses independently (official model cards, not the MODEL_REGISTRY summary), confirm Core ML/iPhone path + speed claims, update MODEL_REGISTRY.md. Then run both against the owner's real library, evaluated via Curation Lead #1's framework (evaluation/queries_template.md), never by demo. No app code/schema change expected at this stage.
 - Depends on: nothing (research + standalone eval script). Gates satisfied: round-0 baseline done, seed labels exist, tree clean.
+
+### אחראי יעילות וסשנים #1 (Efficiency & Sessions Lead) — a permanent role, not a one-off worker
+- Status: PLANNED, session to open: "אחראי יעילות וסשנים #1".
+- Scope: a narrow internal-auditor role, separate from the PM (owner-created 2026-09-27, see ACTIVE_WORK.md "Efficiency & Sessions Lead #1"). Owns usage/context/session-health monitoring across the PM and all workers — never Roadmap, priorities, or what gets built. Reports findings + recommendations to the PM proactively, without waiting to be asked.
+- Why it exists: the PM was catching usage spikes only reactively, after the owner pointed at them, while also running the whole project — a structural gap, not a one-time lapse.
