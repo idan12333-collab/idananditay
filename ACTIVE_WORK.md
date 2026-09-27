@@ -112,7 +112,9 @@ The goal is never to minimize the worker count for its own sake, and never to sl
     The Curation Quality Track stays open and high-priority until the gate evidence exists.
 - Tooling freeze until the I-007 spike runs (only I-002 is allowed, if it stays small).
 
-## 7a POC decision (PM #1, 2026-09-26, from MODEL_REGISTRY `541108e`)
+## 7a POC decision — STARTING NOW (2026-09-27, PM #2: baseline done, W2 done, tree clean — all gate conditions met, not waiting for a separate go-ahead)
+- Session to open: **"7a POC Worker #1"**. Scope: verify SigLIP 2 base's license (code + weights, separately) and OpenCLIP xlm-roberta-base-ViT-B-32's, on the official model cards (not the summary below — read the primary source), confirm the Core ML/iPhone path claims, update MODEL_REGISTRY.md with what's actually verified vs. still assumed. Then download + run both against the owner's real library, evaluated by Curation Lead #1's framework (evaluation/queries_template.md, held-out set) — never by demo. No app code/schema changes expected at this stage (pure research + a standalone eval script); if that changes, stop and report.
+- Original decision (PM #1, 2026-09-26, from MODEL_REGISTRY `541108e`)
 - Compare **SigLIP 2 base** (primary; Apache-2.0 weights, multilingual, Core ML path) against **OpenCLIP xlm-roberta-base-ViT-B-32** (multilingual baseline; POC_ONLY because of LAION provenance).
 - Before downloading, the 7a worker must verify on the local machine (the cloud couldn't reach the sources): the license text of the code AND the weights on the official model cards, the Core ML/iPhone path, and the published speed. It updates MODEL_REGISTRY.
 - Evaluation belongs to the curation lead: Hebrew + English queries from `evaluation/queries_template.md`, measured on the owner's seed / eval library. Winner by measured quality, speed per 1,000 photos, license and iPhone feasibility, never by demo.
