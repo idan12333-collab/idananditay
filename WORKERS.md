@@ -108,8 +108,13 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Reason for replacement: context reached ~540k and made it the biggest usage consumer (owner-approved). Handoff: ACTIVE_WORK.md "PM HANDOFF".
 
 ### Project Manager #2
-- Session: "מנהל פרוייקט #2" (`local_ae3d6b14-31cd-4284-a516-321e510e7a64`). Status: **ACTIVE**. Started: 2026-09-26 23:10, on Idan's computer.
+- Session: "מנהל פרוייקט #2" (`local_ae3d6b14-31cd-4284-a516-321e510e7a64`). Status: **REPLACED** (2026-09-27 ~15:00). Started: 2026-09-26 23:10, on Idan's computer.
 - Scope: same as PM #1. Itay becomes acting owner from Monday 2026-09-28 (`HANDOFF_TO_ITAY.md`).
+- Reason for replacement: ~50% context / 1,450+ messages over ~13h, mostly chat (not state). Handoff recommended by the new Efficiency & Sessions Lead role at a clean checkpoint. Full handoff: ACTIVE_WORK.md "PM HANDOFF" section.
+
+### Project Manager #3
+- Session: "מנהל פרוייקט #3" (`local_f095085c-5fbd-414e-b807-f000d4326c2a`). Status: **ACTIVE**. Started: 2026-09-27 ~12:05.
+- Scope: same as PM #2. Full handoff in ACTIVE_WORK.md "PM HANDOFF" section.
 
 ### Quality Worker #1 (session title "עובד איכות", formerly "איכות סינון תמונות")
 - Session `local_a74829e2-41be-4774-904d-cb88a891e546`. Status: **DONE**. Started: 2026-09-26 ~13:00. Ended: 18:22. Start commit: `7927635`. End commit: `a9783bb`.
