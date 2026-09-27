@@ -238,6 +238,7 @@ Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation
 - ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed), 021 = PM (technical flags demote, not exclude), 022 = curation labels (reserved), 023 = Quality Worker #2 (time-windowed near-dup threshold, reserved). **Next free: ADR-024.**
 
 ## Backlog (unassigned, not started)
+- UI: a convenient way to jump directly to a specific photo (e.g. by ID or filename) for review, instead of only browsing — came up reviewing a data-quality question (photo 2267) with no easy way back to it in the UI (owner-requested 2026-09-27).
 - ~~Warn before scanning OneDrive cloud-only files~~: moved into W2's scope (see W2 section — real incident 2026-09-26).
 - Calibrate the quality thresholds on a real library (the review labels from W1 make this measurable; do it before or with M2).
 - HEIC decoder licensing (pillow-heif = POC_ONLY).
