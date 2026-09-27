@@ -2,278 +2,67 @@
 
 Source-of-truth split: **Git** = code state · **MEMORY.md** = project state · **ACTIVE_WORK.md** = live multi-session coordination.
 Maintained by the Project Manager (PM) session. Workers: read this before touching code; message the PM on every status change.
-Last updated: 2026-09-27 ~15:00 (PM #2, handing off); PM #3 confirmed ACTIVE ~same time (registered in WORKERS.md, notified 7a POC Worker #1 and אחראי בקרת איכות תמונות directly).
+Last updated: 2026-09-27 ~13:00 (PM #3).
 
-## >>> PM #3 CONFIRMED ACTIVE — critical correction from PM #2 after the handoff (read this too) <<<
-- **7a's report was not a real result:** `evaluation/reports/poc_7a_2026-09-27.md` (as it stood at handoff) was actually a 12-photo dry run, not the full 231-photo run described earlier in this file. PM #2 already told 7a POC Worker #1 directly to redo it on the full 231 with a properly separated held-out set. PM #3: verify this lands before treating any 7a number as real.
-- **Curation Lead approved (by PM #2) to build 3 local test pages** (query selection / must-find marking / 0-3 scoring) around the owner's new `queries_template_researched.md`, and to coordinate query selection directly with 7a. No app schema/code change expected from this (evaluation-only tooling).
-- PM #3 instructed: don't start new implementation without the owner's approval.
+**Restructuring note (PM #3, 2026-09-27, on the Efficiency & Sessions Lead's confirmed recommendation):** this file had grown to 279 lines / 54.6KB — ~58% of the four core coordination docs' combined weight, almost entirely full narrative history for workers already DONE, superseded rule drafts, and old handoff prose. Full verbatim history moved to `project_management/archive/active_work_history.md` — nothing deleted, read it only when you need the "why" behind a past decision. This file now holds only what's live.
 
-**PM #3 STARTING NOW: recover state from this file + MEMORY.md "Current state (session handoff)" only, not from any conversation history.**
+## Handoff template (use for every future PM handoff — keep it under ~20 lines; fixed fields scan faster than prose and don't bury routing info)
+- Why handing off / context %:
+- Git state: HEAD hash, pushed?, uncommitted files and whose they are:
+- Active workers (one line each: name, session id, one-line status, next step):
+- Waiting workers (one line each):
+- Open blockers:
+- Next action:
+- Do NOT do without the owner's approval:
 
-## >>> PM HANDOFF: READ THIS FIRST, Project Manager #3 (written by PM #2, 2026-09-27 ~15:00) <<<
-- **Why the handoff:** PM #2 hit ~50% context / 1,450+ messages over ~13 hours, mostly long chat exchanges (84% of its tokens were "Messages", not tool/state). The new **אחראי יעילות וסשנים #1 (Efficiency & Sessions Lead)** role — a permanent, separate role from the PM (see its section below) — explicitly recommended handing off now, at a clean checkpoint (no worker mid-task, quota just reset), rather than waiting for a fixed threshold. It also recommended AGAINST splitting the PM role itself further (git/coordination/state all need one shared source of truth); its own role works because it's a pure read-only external auditor.
-- **Git:** main = origin/main, pushed as of `74132d3`. Uncommitted at handoff: `ROADMAP.md`/`MODEL_REGISTRY.md` (PM #2's own edits, safe to commit), and **7a POC Worker #1's** new files (`evaluation/poc_7a_semantic_search.py`, `evaluation/reports/poc_7a_2026-09-27.md`) — that worker's own commit, don't take it from them.
-- **M1 is genuinely closed** (re-closed 2026-09-27): the 3 real bugs found earlier that day (screenshot JPEG detection, near-dup burst threshold, cancel-button no-op) are all fixed, tested, owner-approved and merged (`03d3905`, `8f8594b`). Round-0 baseline + M5 dup review are also done and committed (`52605af`, `1feb0c9`). **M2 (semantic search) is ACTIVE now** — see 7a POC Worker below.
-- **Owner:** Idan flies **Monday 2026-09-28**; from then Itay is acting owner (`HANDOFF_TO_ITAY.md`). Owner communication style: simple Hebrew, short, ask only real questions, state exactly which session to open and nothing more. **Standing correction from the owner (2026-09-27, said more than once): the PM must act proactively — the moment a gate/blocker clears or a milestone condition is met, ask for what's needed (e.g. a new session) immediately, don't wait to be asked "why is nothing happening".**
-- **Active workers right now:**
-  - **7a POC Worker #1** (`local_e97680e0-4761-4d15-9cbc-064e0d420576`): license verification DONE and documented in MODEL_REGISTRY.md (both models, code+weights separately, from primary sources — e.g. confirmed SigLIP2's Core ML path is an unofficial community conversion, iPhone-specific feasibility still unverified; confirmed OpenCLIP's LAION-5B provenance issue in detail, stays POC_ONLY). ML deps installed in the app's own venv. Already self-corrected to library 15. A 12-photo dry run (uncommitted) showed SigLIP2 removing 9/9 labeled junk at a "safe" threshold with no must/special loss on that tiny sample — promising but not conclusive. **Full run now in progress in the background** (~231 labeled photos, both models, against the round-0/M4 baseline of 52% junk retention). Report + `evaluation/reports/poc_7a_2026-09-27.md` update coming. `evaluation/queries_template.md` still unfilled by the owner (not blocking).
-  - **אחראי יעילות וסשנים #1** (`local_de2166e2-8934-4965-bbf8-78c40489fb24`): NEW permanent role (created 2026-09-27), separate from the PM. Scope: usage/context/session-health auditing across the PM and all workers — never Roadmap/priorities/what to build. Reports to the PM, proactively, event-driven (not polling). Is actively watching THIS handoff to make sure every active worker gets routed to the new PM (the exact bug that already happened once — a worker reported to a retired PM session).
-- **Waiting (idle, no active task):**
-  - **Curation Lead #1** (`local_eaba79d0-…`): round-0 + M5 both done and committed. Next useful step: round 1 once 7a has a real result, measuring against the M4 junk-retention baseline (36/71 = 50.7%, from `round0_2026-09-27.md`) without hurting M1/M2.
-  - **יועץ מוצר ויעילות #1** (`local_3c7e1461-…`): no task, hasn't run a review in a while — worth an Advisor pass once 7a lands, per the standing "Advisor review" step in the "Next order" plan below.
-  - **Cloud Worker #1** ("פרויקט ביקורת ענן"): no task. The owner relays messages; the PM writes the exact text (can't message it directly).
-- **Closed since the last handoff (archived, don't reopen without a new reason):** עובד תיוג #1 (`8454783`), עובד החרגות #1/W2 (`03d3905`), עובד איכות #2 (`8f8594b`).
-- **Known open items, none blocking:** photo 2267 data question — resolved (owner mis-tap, no metric impact). Library 14→15 ID churn — resolved (M5 tool now scores from a frozen snapshot, not the live DB); **tell the owner again if he creates another "new library" for the same folder instead of rescanning** — it renumbers everything.
-- **NEW, significant (2026-09-27, right at handoff):** the owner did independent research and wrote `evaluation/queries_template_researched.md` (`e9003a5`) — a much more rigorous replacement/superset of `queries_template.md`: separates 7a/7b/time/place/event/complex layers, hard negatives, a lightweight Ground Truth method (MUST_FIND + 0-3 Top-K rating instead of full tagging), proper metrics (must-find recall, Top-10/20, redundancy, coverage, nDCG), Hebrew-vs-English checks. Sent to Curation Lead #1 (message may still be queued — check it landed) to sit with the owner and pick the first 12 queries against his real library, and to reconcile it with EVAL_PLAN.md/queries_template.md. Not blocking 7a's current run.
-- **Next order (still valid):** 7a POC (in progress) → Advisor review → I-012 research → I-013 concierge album (gated) → 7b people POC. Itay's second library (I-016) needs Itay's consent.
-- **Efficiency discipline PM #3 should actually follow (not just state):** batch documentation commits at real checkpoints (a worker finishes/reports something significant), not one commit per tiny doc edit — PM #2 was told about this twice and didn't fully follow through; don't repeat that. Hand off to PM #4 at the next natural clean checkpoint, don't wait for a fixed percentage.
+## מצב נוכחי (current state — read this for day-to-day work, not the archive)
+- **PM:** מנהל פרוייקט #3 (`local_f095085c-5fbd-414e-b807-f000d4326c2a`), ACTIVE since 2026-09-27 ~12:05.
+- **Acting owner:** Idan traveling; **Itay is temporary full owner from 2026-09-28** (`HANDOFF_TO_ITAY.md`). Owner communication style: simple Hebrew, short, ask only real questions, state exactly which session to open.
+- **Milestones:** M0 + M1 complete. **M2 (semantic search) ACTIVE** — 7a POC below.
+- **Active workers:**
+  - **7a POC Worker #1** (`local_e97680e0-...`): licenses verified in MODEL_REGISTRY.md. First report (`poc_7a_2026-09-27.md`) was a 12-photo dry run, not real — that run was then LOST when its session closed mid-run. Recovered: added disk logging + per-model partial-report checkpointing + embedding cache so a session drop can't lose completed work again; `evaluation/poc_7a_semantic_search.py` committed as `da36904` (Curation Lead imports `build_model`/`embed_images`/`embed_text` from it — signatures unchanged). Full 231-photo, both-model run in progress again now (`evaluation/reports/local/poc_7a_run.log`), currently slower than expected because it's CPU-competing with Curation Lead's embedding job on the same machine — both legitimately running, not stuck.
+  - **אחראי בקרת איכות תמונות** (Curation & Evaluation Lead, `local_eaba79d0-...`): `queries_template.md` marked SUPERSEDED by the owner's `queries_template_researched.md`; `EVAL_PLAN.md` has a new "Retrieval rounds" (R1–R6) section. Building `evaluation/retrieval_eval.py` (3 owner-facing pages: query choice / must-find-by-date / pooled grading, plus a scorer) + `evaluation/retrieval_candidates.json` (25 candidate queries). Computing embeddings now. **Told to message the owner directly for page 1 (query choice)** — he had not seen a request from her as of 2026-09-27 ~13:15.
+  - **אחראי יעילות וסשנים #1** (`local_de2166e2-...`): active internal auditor, see WORKERS.md "Role boundary" note. Just delivered its first PM-handoff-cost review (see below); measured file sizes, confirmed the restructuring direction, recommended a fixed short handoff template (adopted above).
+- **Waiting (idle):**
+  - **יועץ מוצר ויעילות #1** (`local_3c7e1461-...`): due for a review pass once 7a's real result lands.
+  - **Cloud Worker #1** ("פרויקט ביקורת ענן"): no task; owner relays messages, can't be messaged directly.
+- **Open blockers:** none blocking right now.
+- **Next action:** 7a's real 231-photo run finishes → Curation Lead evaluates it in the retrieval framework → Advisor review → I-012 research → I-013 concierge album (gated) → 7b people POC.
+- **Don't do without the owner's explicit approval:** start new implementation beyond what's already approved above.
 
-## Scheduled triggers (standing rule: the PM schedules every known follow-up itself; the owner isn't the reminder system)
-| Trigger | Mechanism | Fires | Action | Must stay alive | If it fails |
-|---|---|---|---|---|---|
-| Quota reset | CronCreate one-shot `ff6d0cf7` in the PM #1 session | 2026-09-26 22:13 | Check usage → resume Exclusions #1 with the full brief + I-004 → update state → 2 lines to the owner | Claude app open, computer awake, PM #1 session open and idle | The trigger is lost; the owner writes anything to the PM, and the PM runs the same steps |
-| Advisor first review | CronCreate one-shot in the PM #1 session | 2026-09-26 22:17 | Wake Advisor #1 → ≤5 ideas → joint classification → only product-owner items go to the owner | Same as above | The owner writes to the PM, and the PM runs the review then |
-| Worker finishes / network error | The worker reports + a one-shot notify_when_idle | On idle | Verify → next step / resend "continue" | Same | The owner tells the PM that a worker looks stuck |
-| Exclusions #1 committed (M1 closes) | The PM handles the worker's report | On the report | Wake Advisor #1 for the M1 review; then propose the PM #2 handoff | Same | — |
-| PM handoff | The PM asks the owner to open "Project Manager #2" | After M1 closes | The new PM re-creates any pending cron triggers in its own session | — | Cron jobs are session-only: re-create them after a handoff |
-| **24/7 autonomous operation, every 5h (owner-requested 2026-09-27 ~00:45, cadence fixed ~01:05: "wake the PM every 5 hours, tell it to continue the project", first run 03:15)** | `mcp__scheduled-tasks` task `album-pm2-overnight` (file: `C:\Users\idan1\.claude\scheduled-tasks\album-pm2-overnight\SKILL.md`). One-time `fireAt`, self-updating: each run resets its own `fireAt` to exactly +5h before finishing (cron's fixed hour-of-day can't express "every 5h from an arbitrary start", so this is a self-rescheduling one-shot, not a cronExpression). **Survives a PM session reset/close** — runs on next app launch if it was closed when due. Each run is a brand-new memory-less session; its prompt is fully self-contained (reads ACTIVE_WORK.md/WORKERS.md/the log itself first). | Every 5h exactly, starting 2026-09-27 03:15 Israel time, ongoing | Check every active/waiting worker, verify + advance whatever the protocol allows WITHOUT the owner's judgment, push pending doc commits, append one factual entry to `project_management/PM2_AUTONOMOUS_LOG.md`, then reschedule its own next run +5h. When the owner comes back and chats with a live PM session again, that session reads the log and gives him one structured summary — the scheduled task itself doesn't detect "owner is back". | The Claude desktop app needs to be open at some point for a due run to fire (it catches up on next launch if closed). If a run fails to call the reschedule step (crash, tool error), the chain silently stops at that point — the owner should check `list_scheduled_tasks`/the Scheduled sidebar if progress seems to have stalled for way more than 5h. | **Never approves owner-only decisions (commits/merges needing manual product judgment), never touches billing/GitHub-admin/financial/config actions, no timeout ever overrides those.** For anything else non-critical, proceeds with the safe/reversible default and logs the decision for later review. Emails idan12333@gmail.com only for a real, not-already-flagged blocker. First run may need the owner to click "Run now" once in the Scheduled sidebar to pre-approve tool permissions (git, Gmail). |
+## Standing rules (still active; full rationale/history in the archive)
+- **Coordination:** every worker messages the current PM on finish / blocked / handoff / test-failure-affecting-another-worker / about-to-commit, with test result + exact file/hunk list + manual-test steps. A worker checks `git status` + this file before starting, confirms no scope overlap with an ACTIVE row. Commit gate: full suite green → owner (or Itay) validates manually → owner approves (in the worker's session, or to the PM who relays the exact words) → worker commits only its own hunks → verifies the staged tree in isolation (`git stash --keep-index` + full suite) → reports the hash. PM checks each worker's context via get_usage before assigning work: ≥70% no new large task, ≥85% checkpoint and hand off (notes here + in MEMORY.md). The PM hands itself off the same way.
+- **Traffic-control philosophy (Efficiency Control v2):** maximize useful progress per unit of usage AND time — never minimize worker count for its own sake. Parallel workers are fine when scopes are truly independent (no shared files/schema/UI) and each has good ROI. Never a blanket slowdown for one expensive session — diagnose that session specifically. High consumption while shipping something real is fine; high consumption from polling/status chatter/redundant re-reads/browser loops is not.
+- **PM efficiency discipline:** batch documentation commits at real checkpoints, not one per tiny edit. No polling, ever. Targeted reads/tests during work; full suite and full-doc reads only at real checkpoints. Hand off to the next PM at a natural clean checkpoint, not a fixed percentage.
+- **I-009 UI gate:** before building any customer-facing screen, send the owner a one-sentence goal + a static mock; wiring starts only after approval.
+- **I-011 isolation:** a separate branch/worktree only for genuine parallel-work/overlap risk; a single worker on an isolated task works on `main`.
+- **Onboarding / worker lifecycle:** see WORKERS.md (fixed onboarding sequence, sidebar-archive rule, Advisor protocol, Cloud-worker rule).
+- **Role boundary (Efficiency & Sessions Lead vs. Product & Efficiency Advisor):** see WORKERS.md "Role boundary" section — HOW-we-work token/session cost vs. WHAT-we-build product ROI. Decided by PM #3, 2026-09-27, owner-requested.
+- **Curation gate evidence** (required before album generation depends on curation; full owner discussion in the archive): a real ≥1,000-photo labeled eval set with a held-out portion never used for tuning; zero lost "special moment" photos at the candidate stage; high candidate-stage recall for definitely/probably-include; junk retention measured and trending down without hurting recall; duplicate agreement with the owner's preferred copy; coverage of requested people/events/years for 2–3 real album requests; measurable round-over-round improvement holding on held-out data; owner blind review + acceptance rate + miss list; runtime budget per 1,000 photos; **AI-assisted ground truth only** — the AI proposes, the owner confirms/corrects, only the owner-confirmed result is truth, proposals stored separately, a blind ~10% subset guards against anchoring, local-only by default (any external vision API needs a separate explicit owner decision).
+- **Real incident worth remembering:** creating a "new library" for an already-indexed folder (instead of rescanning) renumbers every photo/group ID and can orphan ID-keyed data — always rescan, never re-add.
 
-## Snapshot
-- Branch `main`, pushed to GitHub (`origin` = `idan12333-collab/idananditay`). HEAD = `64d099a` (W4, ADR-020) on top of `6a7a1eb` (PM docs), `a9783bb` (W1) and `55b7761` (W3); previously `7927635` (folder browser + build-versioned assets).
-- Working tree (owner's PC): W1, W3 and W4 are committed. Only W2 (partial) is uncommitted, and it exists ONLY on the owner's PC — not in GitHub. **Never** `git add -A` / `commit -a`: each worker stages only its own hunks.
-- Milestones: M0 complete; M1 **REOPENED (2026-09-27) — real bugs found in active use: screenshot false negatives, near-duplicate merge gap, cancel-button no-op (Quality Worker #2, W2); also pending exclusions completion (W2)**. **M2 NOT started.** M2 requires: a decision on W2 (finish+commit, push as a WIP branch, or shelve), a clean tree, and explicit approval by the owner — or by Itay as acting owner (see below).
-- Plan usage (shared by all sessions): 5-hour window 58% used, resets 15:40 UTC; weekly 15%.
+## Settled product principles (already baked into the product; full owner discussion in the archive)
+- Album relevance target = people and animals; everything else (landscapes, objects, screenshots) is judged later by the album request + semantic signals (M2+), never by the rule-based technical filter.
+- Print size/PPI is invisible to the customer — internal-only, automatic layout decisions later.
+- The technical filter uses neutral wording only ("פחות מתאימה כרגע לאלבום"), never "not a memory" — relevance judgments belong to the semantic layer, not the technical one.
+- No photo is ever silently lost: everything flagged is de-prioritized, reviewable, and restorable — never deleted.
 
-## Acting owner during the Japan trip (owner, 2026-09-26)
-- Itay is the **temporary full project owner** while Idan is away. Everywhere this file says "owner", Itay's approval counts. He approves commits, opens/closes workers, changes priorities, approves milestone progression (incl. M2), makes implementation/product decisions and accepts/rejects Advisor recommendations.
-- The PM runs on Itay's computer as the next Project Manager (see WORKERS.md, `HANDOFF_TO_ITAY.md`). Cloud sessions work on their own branches; only the PM on Itay's machine merges to `main`. Cloud workers follow the "Cloud-worker rule" in WORKERS.md (PM = coordination hub; every task ends with a "Handoff to Project Manager").
-
-## Coordination protocol (owner-approved 2026-09-26)
-1. The PM session is named **"project manager"**. All sessions run in **auto** mode: cross-session messages and idle notices only flow automatically when the modes match. If a session is in a different mode, the PM tells the owner which one to switch.
-2. Every worker messages "project manager" when it: finishes · is blocked · needs a handoff · has test failures that affect another worker · is about to commit. Each message includes the test result, the exact file/hunk list, and the manual-test steps.
-3. The PM subscribes to one-shot idle notices. No polling, cron, daemons, or extra processes without the owner's approval.
-4. Before starting implementation, a worker checks `git status` and this file, then confirms that its scope doesn't overlap an ACTIVE row.
-5. Commit gate: full test suite passes → owner validates manually (for user-facing work; during the Japan trip Itay acts as owner) → owner approves either in the worker's session OR explicitly to the PM, who relays it quoting the owner's words (owner-authorized 2026-09-26) → the worker commits its own hunks only → the staged tree is verified on its own (`git stash --keep-index` + full suite) → the worker reports the hash to the PM.
-6. Context: the PM checks each worker's context with get_usage before assigning work. At ≥70% no new large task. At ≥85% stop at a clean checkpoint and hand off to a fresh worker (handoff notes go here and in MEMORY.md).
-7. The PM hands itself off the same way: before it gets near its limit, it writes the full state here and in MEMORY.md.
-
-## Efficiency & Sessions Lead #1 — a SEPARATE role from the PM (owner, 2026-09-27)
-The PM was doing this reactively (noticing a usage spike only after the owner pointed at it) on top of actually running the project — that's the real problem, not "be more efficient." A dedicated, narrow-scope role fixes it:
-- **Session to open: "אחראי יעילות וסשנים #1".** Reports TO THE PM (not roadmap decisions, not priorities, not what to build) — a pure internal auditor sitting beside the PM, not above or below it.
-- **Owns:** usage/context/request efficiency across the PM AND every worker; spotting a session that's inflating fast; spotting polling/retries/browser-loops/test-loops/redundant re-reads; the ratio of usage+time spent to actual output produced; recommending per-worker whether to continue / change approach / checkpoint / go WAITING / get replaced by a fresh-context session; the PM's OWN context health; the PM-handoff routing problem specifically (making sure every active worker knows who the current PM is — this is exactly the bug that already happened once: a worker reported to a retired PM session).
-- **Never:** decide what gets built, change Roadmap/priorities, build new tooling/systems without approval — uses the existing dashboard, WORKERS.md, ACTIVE_WORK.md, and cross-session tools (get_usage, list_sessions, list_events) that already exist.
-- **Metric:** useful progress ÷ (time × usage), weighted by quality — never usage alone. A worker burning a lot while shipping something real is efficient; a worker burning little while blocking an important dependency is not.
-- **Proactive, not reactive:** don't wait for the owner to notice a spike. The moment something looks off, report to the PM with: who's consuming, why, what's been produced so far, whether it's justified, and a concrete recommendation.
-- **The concrete goal (owner, 2026-09-27, refined):** the 5-hour window is currently yielding only ~2 hours of real work before the quota is exhausted. The fix is NOT "spread the same work over more wall-clock time" (that's just working slower) — it's **cutting actual waste (redundant tokens/requests/re-reads)** so the SAME window produces more real output before running out. Both matter together: less wasted usage per unit of output, and more real output per window. Reports go to the PM, who relays what matters to the owner.
-- **First task once open:** audit the current session set (this PM session included) and give a first efficiency status report — specifically diagnosing what's eating the other ~3 hours of the window right now.
-- **First audit result (2026-09-27 ~09:00):** 5h window at 96%, only ~2:50 left to reset. No classic waste (no polling/loops/retries) — usage is mostly explained by long PM chat exchanges (this session, 49% of the window) and 7a's pip installs (legitimate ML deps). Recommendation followed: PM and 7a both checkpoint cleanly now, no new heavy work (esp. not 7a's actual model-running phase) until the reset.
-
-## Efficiency Control v2 — dynamic Traffic Controller (owner, 2026-09-27, SUPERSEDES "normally one active worker" below; day-to-day auditing of this now belongs to Efficiency & Sessions Lead #1 above, not the PM alone)
-The goal is never to minimize the worker count for its own sake, and never to slow the project down. It's **maximum useful progress per unit of usage AND time** — both matter, not just usage. If 3-4 workers can run in parallel without interfering (independent files/schema/UI) and each has good ROI, run them all at once. Three workers burning 50% of a window in an hour is excellent if one closes a POC, one closes a UI, and one finishes research that saves two months of roadmap. One worker alone burning 40% in 30 minutes on file re-reads, retries and 20 status updates is the actual problem — the worker count was never the issue.
-- The PM is the Traffic Controller: in real time, know who's active, what they're working on, how much usage/context/requests each is spending, what they're producing, whether the pace is justified, whether there's duplicate work, whether there's polling/redundant calls/unneeded checks, whether a session has gotten bloated and inefficient — and decide, per worker, whether to continue, adjust, replace, or stop.
-- Never stop a worker just because it's consuming a lot. First check what it's achieving against that consumption. High-consumption-but-fast-and-closing-something-meaningful is efficient; high-consumption-from-polling/status-chatter/repeated-context-reads/browser-loops/redundant-checks is not. Tell the difference before acting.
-- On a usage spike (e.g. 30-40% in a short time): identify the big consumers → find out why each one, specifically → decide per-worker (continue as-is / change its way of working / bring it to a checkpoint / move to WAITING / open a fresh-context replacement / stop a low-ROI task). Never a blanket project-wide slowdown.
-- Working-style improvements to enforce across all workers: targeted reads instead of re-reading the whole project; targeted tests while developing, full suite at real checkpoints; batch messages/updates instead of a stream of small ones; no polling; reuse information that already exists instead of re-deriving it; a small **Context Pack** for a new worker instead of dumping the whole history on it; open a fresh session when the old context is no longer relevant to the new task.
-- **Efficiency status report**, given to the owner after a significant chunk of work AND whenever there's an unusual quota jump: who the big consumers are right now; what each one achieved; whether the consumption is justified; what waste (if any) was found; what's being changed now, if anything. If everything is justified, change nothing just to lower usage numbers.
-
-## Efficiency & vision rules (owner, 2026-09-26 evening; additive to the protocol above; the "one worker at a time" line is superseded by Efficiency Control v2 above — kept for history)
-- Optimize waste, not rigor. Keep workers to a minimum. Run in parallel only when the tasks are truly independent (no shared files, schema or UI/API) and it clearly saves time. Prefer one complete brief over many small messages. Read state files instead of long transcripts. Reuse fixtures/datasets.
-- Tests: targeted tests while building; the full suite at checkpoints and before any commit.
-- Workers are replaceable. A worker that finishes its scope becomes DONE and is closed; it doesn't get unrelated new work. When a context has built up a lot of irrelevant history → safe checkpoint → handoff to a fresh worker (compact only when it's genuinely useful). The same rule applies to the PM.
-- Usage window: near the short limit, start no large task; finish safe units, save state, prepare the resume. After a reset, resume the highest-value unblocked work first.
-- PM idle-notice subscriptions: only when a worker would NOT report by itself. Workers report on their own (saves duplicate PM turns).
-- The PM owns ROADMAP.md as the path to the final vision (consumer iPhone app, huge libraries, natural-language albums, people/pets/events/places, age-robust faces, emotional value ≠ technical quality, curation, page layout, editing, print-ready output, ordering). Factual updates happen automatically. Major strategic changes need the owner's approval first. Good ideas that fall outside the current milestone go to the backlog, not to a new worker.
-- The daily report includes "יעילות העבודה היום". The dashboard shows an efficiency section.
-
-## Usage investigation (2026-09-26 ~17:45, measured from the transcripts' API usage fields since the reset ~17:15)
-- Dashboard Worker: 61 requests, 12.0M cache-read, peak context 275k, 13 browser batches with screenshots, 9 pytest runs.
-- W1: 18 requests, 7.2M cache-read, peak context **466k** (~0.4M re-read per step).
-- PM: 24 requests, 5.7M cache-read, peak context 267k.
-- W2: 0 (idle, which is correct).
-- Total: ~103 requests / ~25M cache-read in ~30 min, versus 13.9M in the whole previous 24h.
-- Root cause: large contexts × many small steps. Every request re-reads the whole cached context. Contributors: visual browser self-checks with screenshots, repeated test runs, multiple owner-feedback rework rounds, PM turns on idle notices.
-- Not a cause: the dashboard server (local, zero Claude usage), W2 (idle), polling/cron (none).
-- Caveat: the 25M figure is the sum of per-request cache_read over the transcripts of 3 sessions (this project only). The 13.9M/24h figure came from the owner's usage report, whose scope and accounting are unknown. The comparison is indicative, not exact.
-- **Operating rules (refined by the owner, 2026-09-26; the worker-count line below is superseded by "Efficiency Control v2" above — several independent workers may run in parallel when ROI is good):**
-  - ~~Normally ONE active implementation worker at a time.~~ Multiple workers may run in parallel when their scopes are truly independent (no shared files/schema/UI) and each has good ROI — the PM tracks each one's consumption vs. output, not the headcount. Waiting workers stay truly idle. No polling. Workers send concise reports to the PM.
-  - Feedback is batched into meaningful correction rounds.
-  - Worker reuse is decided case by case. Reuse a worker when the next task is closely related, its context is still relevant, and reuse is cheaper than rebuilding the context. Otherwise use a fresh worker.
-  - ~300k context is a WARNING threshold, not a cutoff. Weigh how relevant the context is against the remaining work. Close high-context workers once their scoped work reaches a clean checkpoint.
-  - Tests: targeted tests during implementation, whenever they're useful. The full regression suite runs at the final checkpoint before a commit.
-  - Visual (browser/screenshot) testing: batched and minimized. Another run is fine when it's genuinely needed.
-  - PM handoff: based on actual inefficiency (context relevance, cache/request behavior), not on a fixed number.
-  - The PM doesn't react to idle notices when a worker reports on its own.
-  - **Error recovery (owner-requested 2026-09-26):** the PM holds a one-shot idle subscription ONLY on workers that are actively implementing. When a notice arrives without a report from that worker, the PM checks the transcript tail. If the turn ended on an API/network error, the PM sends one "continue from where you stopped" message; if it fails again, the PM tells the owner. No polling. Limitation: if the internet or the Claude API is down for everyone, the PM can't react until it's back.
-
-## Process changes from Advisor review #1 (2026-09-26)
-- I-009 UI gate: before building any customer-facing screen, the worker sends the owner a one-sentence goal + a static mock. Wiring code starts only after the owner approves it.
-- I-011 (refined by the owner): use a separate branch/worktree when there's parallel work, possible overlap or a clear isolation need. A single worker on an isolated task works on main with no extra overhead.
-- Owner decisions (2026-09-26, after Advisor review #1):
-  - I-007 split into 7a Semantic Search POC (first; small, measurable, real photos) and 7b the age-progression person POC (a separate worker/task);
-  - I-008: a permanent evaluation library of 1–3k original photos with deliberate variety, growing to 5k/50k+;
-  - I-010: PM #2 + Advisor on a cheaper model as an experiment, with decision quality measured.
-  - I-012 APPROVED: research, an end-to-end UX comparison on the same real library (time, steps, quality, friction), not a feature list. I-013 APPROVED in principle, GATED on I-008. Metrics: time, cost, manual decisions, swaps, friction points, a ranked list of steps to automate.
-  - **Next order (owner, final):**
-    1. Exclusions #1 (M1 closes = the technical filter is stable enough to continue, NOT "photo selection solved").
-    2. The owner builds the I-008 library + fills `evaluation/queries_template.md` (6 query types). The אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead) opens at the start of this step.
-    3. Human ground truth (labels).
-    4. A baseline curation measurement of the current filter.
-    5. The 7a semantic-search POC, evaluated INSIDE the curation framework: does it improve curation?
-    6. I-012 research.
-    7. Advisor review.
-    8. I-013 concierge album.
-    9. The 7b people POC, and so on.
-    The Curation Quality Track stays open and high-priority until the gate evidence exists.
-- Tooling freeze until the I-007 spike runs (only I-002 is allowed, if it stays small).
-
-## 7a POC decision — STARTING NOW (2026-09-27, PM #2: baseline done, W2 done, tree clean — all gate conditions met, not waiting for a separate go-ahead)
-- Session: "7a POC Worker #1" (`local_e97680e0-4761-4d15-9cbc-064e0d420576`), ACTIVE. Scope: verify SigLIP 2 base's license (code + weights, separately) and OpenCLIP xlm-roberta-base-ViT-B-32's, on the official model cards (not the summary below — read the primary source), confirm the Core ML/iPhone path claims, update MODEL_REGISTRY.md with what's actually verified vs. still assumed. Then download + run both against the owner's real library, evaluated by Curation Lead #1's framework (evaluation/queries_template.md, held-out set) — never by demo. No app code/schema changes expected at this stage (pure research + a standalone eval script); if that changes, stop and report.
-- Original decision (PM #1, 2026-09-26, from MODEL_REGISTRY `541108e`)
-- Compare **SigLIP 2 base** (primary; Apache-2.0 weights, multilingual, Core ML path) against **OpenCLIP xlm-roberta-base-ViT-B-32** (multilingual baseline; POC_ONLY because of LAION provenance).
-- Before downloading, the 7a worker must verify on the local machine (the cloud couldn't reach the sources): the license text of the code AND the weights on the official model cards, the Core ML/iPhone path, and the published speed. It updates MODEL_REGISTRY.
-- Evaluation belongs to the curation lead: Hebrew + English queries from `evaluation/queries_template.md`, measured on the owner's seed / eval library. Winner by measured quality, speed per 1,000 photos, license and iPhone feasibility, never by demo.
-- 7a starts only after the seed labels exist (ground truth first).
-
-## Curation gate evidence (required before album generation depends on curation)
-1. The evaluation set is real: ≥1,000 original photos covering several years, people, pets, trips, events and junk types, fully owner-labeled. Part of it is held out and never used for tuning.
-2. False exclusion: the "definitely include" rate (target set from the baseline, expected to be very low) and **zero** lost "special moment" photos, measured at the candidate stage.
-3. Candidate-stage recall for "definitely + probably include" is high enough that ranking gets nearly everything the owner wants.
-4. Junk retention is measured, and trending down across rounds without hurting #2 and #3.
-5. Duplicates: agreement with the owner's preferred copy.
-6. Coverage of the requested people/events/years for 2–3 real album requests.
-7. Each round shows measurable improvement over the previous baseline, and the results hold on the held-out part.
-8. Owner blind review of the final selection for 2–3 real requests: acceptance rate plus the list of misses.
-9. Runtime per 1,000 photos is within the M7 benchmark budget (current ingest baseline: ~51 s / 1,000 photos on synthetic data; the curation budget gets set in the baseline round).
-10. Labels, per Advisor #1:
-   - Request-INDEPENDENT labels on the full set: junk / duplicate + preferred copy / special moment / keep-worthy / technically poor but important.
-   - Per-request relevance labels only for the 2–3 test requests.
-11. (Owner, 2026-09-26: NO second labeler for now.) Instead, **AI-assisted ground truth**: the AI proposes labels/ratings, the owner confirms or corrects them in the existing web UI, and ONLY the owner-confirmed result is saved as the human label. AI proposals are stored separately and are never treated as truth.
-   - אחראי בקרת איכות תמונות #1 must evaluate using the filter-review screen ("מה הסינון הציע?", review_labels) as the base for the labeling screen.
-   - Guards against anchoring: show a random ~10% subset WITHOUT the AI suggestion, and compare the owner's labels there; report the owner's correction rate on AI proposals.
-   - Owner refinements:
-     - Separate OBJECTIVE labels (duplicate, screenshot/document, technical quality) from SUBJECTIVE ones (special moment, keep-worthy). For subjective labels the AI shows a suggestion + confidence, never a verdict.
-     - Start with a SMALL set of critical labels only. No heavy tagging system up front: the goal is fast ground truth, not a labeling project.
-   - Privacy: the AI that proposes labels runs LOCALLY by default. Sending photos to any external AI/vision service needs a separate explicit owner decision (guardrail).
-12. Structural conservatism (ADR-021): verified by design.
-Roles: the אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead) opens when the owner starts building the I-008 library (first deliverables: the eval plan, the library composition spec, the label schema, the query list template), then the baseline round on the current filter.
-
-## Worker identity & onboarding (owner, 2026-09-26)
-- Permanent numbering per category (never reused) and the full history live in **WORKERS.md**. New workers pass a one-exchange onboarding interview + get the standing efficiency rules (see WORKERS.md) before they write any code. Final states: DONE / RETIRED / REPLACED / FAILED. Replacing a worker: final status → reason → handoff → next number → interview → then work.
-- Current mapping: W1 = Quality Worker #1, W2 = Exclusions Worker #1, W3 = Dashboard Worker #1, W4 = Dev Reload Worker #1 (planned), PM = Project Manager #1.
-
-## Workers
-
-### Quality Worker #2: Screenshot false-negatives + near-duplicate merging. Status: **DONE — merged to main as `8f8594b`** (owner-approved), pushed. Rebased clean (149/149 tests), one trivial ADR-numbering conflict resolved (both ADR-022 and ADR-023 kept). Verified against real library-14 data without writing to the live DB (avoided a concurrent-write risk with the running app). **Owner still needs to do a live check** (see below) since the actual DB rows (is_screenshot, duplicate_group_id) won't reflect the fix until a real rescan/regroup runs through the app.
-- **Owner check steps:** the dev app should auto-reload now (file change). Refresh the page, then either rescan library 14 or trigger a duplicate regroup, and check: (1) more/adjusted duplicate groups appear for burst sequences ~1-3s apart, (2) IMG_6382.JPG / IMG_7004.JPG now show as "Screenshot" instead of an exposure issue.
-- **Implemented (2026-09-27 ~01:20):** 122/122 tests pass, ADR-023 written. 6 files, ~130 lines: `app/core/config.py` (2 new settings), `app/ingest/duplicates.py` (burst-window rule), `app/ingest/analyzer.py` (JPEG screenshot detection, phone-screen sizes only, not desktop), `app/db/repository.py` (capture_time added to an existing SELECT), `app/ingest/pipeline.py` (wiring), `tests/test_analysis.py`.
-- **Near-dup rule:** within `near_dup_burst_window_s` (3s) of an adjacent photo, pHash threshold relaxes to 28 (dHash stays 12); outside the window, the original 8/12 is unchanged. Verified read-only against the owner's real DB: old rule → 140 groups, new rule → 152 (58 new burst groups, 51 of them 2-9 photos, reasonable).
-- **⚠️ OWNER DECISION NEEDED before merge (not urgent, no rush):** 7 of the new groups are large (12-41 photos) — a long photo-taking sequence where every adjacent pair is within 3s, but the whole chain runs longer (~35s). This matches the stated principle (avoid over-representing one event/day) and ADR-018 (alternates are only de-prioritized, never deleted) — nothing is lost — but it's a more visible effect than originally scoped. Options when the owner is ready to look: accept as-is, or tighten `near_dup_burst_window_s` to e.g. 1.5s for smaller groups (one-line config change, still much better than the pre-fix state where these weren't grouped at all).
-- **Screenshot fix verified on real examples:** `IMG_6382.JPG`, `IMG_7004.JPG` (1290×2796, no camera EXIF) — were "overexposed", now correctly "Screenshot".
-- **Blocking dependency, confirmed in code (not just theoretical):** the stuck ingest job (library 12, "running" since 23:50) makes `routes.py`'s duplicate-regroup endpoint return 409 ("a scan is running"). Even after this merges, the owner can't see the fix on his real library until that job clears — this is W2's OneDrive-hang fix, not Quality Worker #2's to touch.
-- **Next:** commit lands on `quality-worker-2` (not main). Quality Worker #2 then goes idle/WAITING. Merge to main needs BOTH: (1) W2's stuck-job fix landing so the owner can actually verify visually, and (2) the owner's manual test + explicit approval, per protocol.
-- **Priority: BLOCKS the owner** — he will not continue the 300-photo seed labeling until near-duplicates are merged (real incident, 2026-09-27: many near-identical burst photos ~1s apart are not being grouped).
-- **Diagnosis confirmed on the owner's real DB (2026-09-27, read-only), narrower and more precise than the original hypothesis:**
-  - Near-duplicates: TWO separate causes, not one. (1) The library-12 ingest job (1124 photos) never finished — stuck at 1117/1124 since 23:50 (this is W2's OneDrive-hang bug) — so `duplicate_groups` was never recomputed for this batch at all; only 8 old groups exist from the very first 116-photo scan. (2) Even once hashes exist: ~55 real consecutive-burst pairs (1s apart, same camera) pass dHash (Hamming 2–14) but fail pHash (Hamming 10–22, over the ≤8 threshold) — the AND rule blocks them. Simply raising the global pHash threshold causes real false-merges (found a genuine non-duplicate pair 36.5h apart at ph=14/dh=11). Fix: a time-windowed rule — within ~2s of capture_time, relax pHash to ≤20 (kept with dHash ≤12); outside that window keep 8/12 unchanged. Needs `capture_time` passed into `find_duplicate_groups` (small signature change) + **ADR-023**.
-  - **Important dependency the owner should know:** even after this fix ships, the owner won't SEE merged duplicates on his real library until the stuck ingest job (W2's bug) is resolved or the job is cleared — `routes.py`'s regroup endpoint returns 409 while a scan is "running". This is not something Quality Worker #2 needs to touch; it's the existing W2 dependency, just now confirmed as also blocking visible proof of Quality Worker #2's fix.
-  - Screenshots: confirmed concrete false negatives — `IMG_6382.JPG`, `IMG_7004.JPG`, exactly 1290×2796 (already in `_SCREEN_SIZES`) with no camera EXIF, currently tagged "overexposed". Safe fix: add JPEG to the format check (still requires exact known screen resolution + no camera EXIF, so no new false-positive risk). Explicitly NOT touching ~79 other no-EXIF JPEGs with random names/non-standard aspect ratios (likely WhatsApp shares, not screenshots) — avoids over-triggering.
-- Scope: `app/ingest/duplicates.py`, `app/ingest/analyzer.py::detect_screenshot`, `app/core/config.py`, tests. Not touching routes.py/database.py/repository.py/UI.
-- Both changes affect data already in the DB — after code changes, existing libraries need `refresh_duplicate_groups`/rescan to reflect the fix (pattern: `app/main.py` ADR-017 migration-triggered refresh).
-- Full test suite + a manual owner check on his real library before merge. Working on branch `quality-worker-2`, not main; PM merges after approval.
-- Reservation: **ADR-023 = Quality Worker #2** (time-windowed near-dup threshold). Next free after this: ADR-024.
-
-### W1: Quality / print suitability / human review viewer. Status: DONE — committed as `a9783bb` (see WORKERS.md). History below: (fix round 3 after owner test #3, 17:20): per-reason restore / one keeper per duplicate group (a real leak bug), one place per photo, merge blur+small into "איכות ירודה", "שרופה"→"בהירה מדי", neutral wording, investigate screenshot false positives. Context 42%.
-- Rework delivered: a filter-first review ("מה הסינון עשה?" with a summary by reason, a batch grid, restore/"should have filtered", side-by-side duplicate picks in a new `duplicate_picks` table, the `auto_best_photo_id` column) and a simplified viewer. Still schema v4 (additive). ADR-018 revised. The PM verified 87/87 tests. The split still works.
-- Calibration findings (for later): blur rule too lenient (IMG_1160 is out of focus but not flagged); white screenshots flagged "too bright"; the MROC7762 rotation is in the file itself, not our bug.
-- Owner feedback: the photo was shown tiny (160×120 at native size) and the panel was far too technical. The owner wants it simple and interactive. Spec sent by the PM: fit-to-screen, one plain-Hebrew verdict with a traffic-light color, an interactive print-size picker with a visual preview, 👍/👎 labeling with reasons only after 👎, and technical details collapsed. Also check a possible 90° rotation. Backend unchanged. Still NO commit.
-- Session: "עובד איכות" (`local_a74829e2-41be-4774-904d-cb88a891e546`). Mode: auto. Context: 28% (low risk).
-- Starting commit: `7927635`.
-- Scope: print-suitability rating (`app/printing/`), revised classical quality, full-screen review viewer with human labels, agreement table, and CSV export.
-- Owns: schema **v4** (drop `photos.is_low_res`, recompute `quality_score`, add a `review_labels` table); **ADR-017** (print suitability) and **ADR-018** (review labels); `app/printing/`, `app/vision/*`, `analyzer.py`, `duplicates.py`, `pipeline.py` (AnalyzeConfig), `config.py`, `main.py`, `__main__.py`, `routes.py` (everything except W2's hunks), web static files (viewer/filters/stats), the W1 hunks in `database.py`/`repository.py`, its tests, and its doc updates.
-- State: 84/84 tests pass. The PM re-ran them on the shared tree and they passed. The W1-only split was dry-run in an isolated worktree: 84/84 pass, no W2 identifiers left.
-- Pending: the owner's manual test (7 steps, given to the owner) → the owner writes "approved, commit" **in W1's session** → W1 commits using synthesized W1-only blobs for database.py/repository.py → reports the hash plus the result of the isolated check.
-- Safety: the owner's DB was backed up before the v4 migration: `%USERPROFILE%\.ai-photo-album\backups\library_before_v4_2026-09-26.sqlite3` (116 photos).
-- Known finding (not a bug, calibration later): the 160-px files get sharpness 100/100.
-
-### W2: OneDrive-hang + cancel-button fix. Status: **DONE — committed as `03d3905`.** Owner tested cancel manually (worked); waived a manual OneDrive-scenario test, trusting the 8 automated tests covering it exactly — his words: "שיסתדר עם זה לבד" (the system should just warn in real use if it happens).
-- **Finished (2026-09-27):** full suite 188/188 pass, no leftover pytest processes. 8 new tests (`tests/test_scan_robustness.py`): stuck-file timeout completes the scan (both the thread and pool paths), cancel works within <5s even with a stuck file, a "waiting_file" phase appears/clears, a timed-out file is retried on rescan, no orphaned worker process, cloud-only files are never read and get picked up once they're actually local. One unrelated flaky test noted once (`test_post_requires_same_origin_and_json`, `ConnectionAbortedError`, not reproduced since, not this worker's code).
-- Speed: 450 photos / 7 workers, ~19-26s now vs ~25-28s before (no regression).
-- Files: `app/ingest/pipeline.py`, `app/ingest/scanner.py`, `app/services/folder_browser.py`, `app/core/config.py` (new `analyze_file_timeout_s=120`), `app/web/static/app.js`+`index.html`, `DECISIONS.md` (ADR-016 addendum), `tests/test_scan_robustness.py`. Confirmed NOT touching `.gitignore`/`evaluation/**` (Curation Lead #1's files) — no conflict.
-- **Owner check steps:**
-  1. On a folder inside OneDrive: right-click 2-3 photos → "Free up space" (so they become cloud-only). Scan that folder.
-  2. Confirm the scan finishes without hanging, and shows "X תמונות נמצאות רק ב-OneDrive ולא נסרקו…".
-  3. Right-click those same photos → "Always keep on this device", rescan — they now appear in the gallery.
-  4. Start scanning a large folder and click "ביטול" (cancel) — the scan stops within 1-2 seconds.
-- **CORRECTION (PM #2, 2026-09-27, caught by the worker re-syncing before starting — the brief below was stale):** pre-scan exclusions (wiring, API, UI, tests, ADR-016, I-004 backup) is **already committed as `e806743`, on main, owner-approved via PM #1.** The "Remaining: wiring..." line was wrong/outdated; removed. W2's actual current scope is ONLY the two fixes below.
-- Session: "עובד החרגות" (`local_028eae54-f07c-4076-8f47-8692a8134014`). Mode: auto.
-- Scope now: (1) the scan cancel-button no-op bug, (2) OneDrive cloud-only file hang — both diagnosed below.
-- **Attached (owner-approved I-004, 2026-09-26):** automatic DB backup before a schema-changing migration.
-  - Back up ONLY when a migration will change the schema, never on a normal startup.
-  - Retention: keep a bounded number, e.g. the last 5, and prune older ones.
-  - If the backup fails, the migration does NOT run (the app stops with a clear error).
-  - Log + document where the backup was saved and what happened.
-  - Automated test: a failed backup → migration not applied, schema version unchanged.
-  - If this expands W2's scope significantly, W2 stops and reports to the PM before continuing. The PM must include this in W2's resume message.
-- **Attached (owner-observed 2026-09-26 ~23:55, real incident):** OneDrive cloud-only files hang the scanner. The library root is inside OneDrive; a scan stalled at 1,117/1,124 for several minutes with zero progress and no new log lines — almost certainly a not-yet-downloaded ("cloud-only") file blocking on OS-level download during read. W2 must detect this case in `scanner.py`/`pipeline.py` and surface it in the UI instead of hanging silently: e.g. a visible "מוריד קבצים מ-OneDrive… זה עלול לקחת זמן" state, a per-file timeout that skips the stuck file and records it as an error/retry-later, and never a silent freeze. This upgrades the existing backlog item ("Warn before scanning OneDrive cloud-only files") from unassigned to part of W2's scope. Note: the owner also saw the progress card display a stale count (400) that only jumped to the real number (1,095) after a manual page refresh — the live-progress UI may not be polling/updating on its own; worth a quick look alongside the fix, not necessarily the same root cause. **Confirmed root cause, same incident (owner-observed 2026-09-27):** pressing "ביטול" (cancel) on the stuck job does nothing. Diagnosed: `app/ingest/pipeline.py::_analyze_all` uses `pool.map(analyze_file, paths, ..., chunksize=4)`, and `IngestionPipeline.run`'s cancel check (`cancel.is_set()`) only runs inside the `for rec in self._analyze_all(...)` loop body — i.e. only between yielded results. `pool.map` blocks until each chunk of 4 completes IN ORDER, so if one file in the in-flight chunk hangs (e.g. the OneDrive case above), the loop body — and therefore the cancel check — never runs; cancel becomes a silent no-op. Fix belongs with the OneDrive fix (same mechanism: a per-file timeout), likely by submitting futures individually (`pool.submit` + `as_completed` with a timeout) instead of `pool.map`, so a single hung file can be timed out/skipped AND cancel is checked promptly instead of blocking on a whole chunk. Current workaround for the owner: restart the app (`JobManager.__init__` calls `repo.interrupt_stale_jobs()` on startup, which clears a job stuck in "running"). If this expands W2's scope significantly, same rule as above: stop and report to the PM first.
-- Resume condition satisfied 2026-09-27 (tree clean, Labeling Worker #1 committed `8454783` and pushed); worker re-synced, corrected the stale brief above, and is now implementing the backend half of both fixes (`pool.submit`+`as_completed` with a bounded timeout instead of `pool.map`, replacing both `_analyze_all` and the cancel check). Full suite + owner manual test before commit, as usual.
-- **OWNER DECISION MADE (2026-09-27):** option **A** — an OneDrive cloud-only file is never read during a normal scan; it's counted as "not scanned — cloud-only", and after the scan the owner sees: *"X תמונות נמצאות רק ב-OneDrive ולא נסרקו. כדי לכלול אותן: קליק ימני על התיקייה ← 'שמור תמיד במכשיר זה', ואז סריקה מחדש."* A later rescan picks them up once local. Also approved: the stalled-file line *"ממתין לקובץ… (אם התיקייה ב-OneDrive, ייתכן שהקובץ יורד מהענן)"* while any file is stuck >10s. I-009 mock gate satisfied — worker cleared to build.
-- Important: the owner DB goes straight to v4 without a v3 step. v3 must stay additive (`CREATE TABLE IF NOT EXISTS`). Any real data migration must key off table existence or use v5.
-
-### W3: Dashboard Worker (project-management control center, dev tooling). Status: DONE — committed as `55b7761`. History: (awaiting the owner's manual test, 17:30). 40/40 own tests pass. The product suite is untouched (88 pass). It will commit only its own paths after approval, and then close.
-- Session: "Dashboard Worker" (`local_e2492d03-fa5c-4973-943e-6e50128324d7`). Mode: auto. Context: fresh.
-- Starting commit: `7927635`.
-- Scope: a local-only Hebrew dashboard on 127.0.0.1:8790 (stdlib Python + static files). Read-only views of git, the docs, state.json and the transcripts. Actions are prepared requests for the PM (inbox.jsonl + Copy + "open PM"). No watchers or polling of Claude.
-- Owns ONLY: `project_management/**`, `start_project_manager.bat`, minimal `.gitignore` lines. Never touches `app/`, `tests/` or the product docs. Commits only its own paths.
-- Reservations: **ADR-019** (dashboard tooling decision; may be recorded in `project_management/README.md` + a one-paragraph ADR, the PM appends it to DECISIONS.md). No schema.
-- Depends on: nothing. Blocks: nothing. Runs in parallel with W1/W2.
-- Contract: the PM writes `project_management/state.json` and `project_management/daily/*.md`. W3 defines the schema.
-- Completion condition: its own tests pass + the product suite is still green → the owner validates manually → the owner approves in W3's session → a separate commit.
-
-### W4: Dev Reload Worker (dev tooling). Status: implementation committed as `64d099a` (ADR-020). The worker's final status/lessons are not in Git — PM to confirm. History below: (owner-approved 2026-09-26)
-- Start conditions:
-  - W1 AND W3 have been validated by the owner and committed;
-  - a clean tree;
-  - enough short-window quota to reach a safe checkpoint (otherwise it waits for the next reset);
-  - the owner opens a fresh session named "Dev Reload Worker" (the PM can't create sessions).
-- Scope:
-  - a separate `start_dev.bat` + a stdlib watcher/supervisor for BOTH the album app and the dashboard;
-  - the watcher detects a change → stops the old child → verifies the process has exited and the port is free → starts a new one → verifies the new build/pid via the health endpoint;
-  - in dev mode the page auto-refreshes on a build change (fast check);
-  - normal `start.bat` / `start_project_manager.bat` behavior is unchanged;
-  - ADR-013 single-instance protection + build/PID health checks are preserved.
-- The owner's hard requirements:
-  - the watcher tracks ONLY code/UI files (.py, .html, .js, .css under app/ and project_management/). It never watches the DB, thumbnails, logs, caches, backups, .git or OneDrive temp files;
-  - debounce;
-  - a regression test proves that a restart in the middle of a scan can never leave that scan marked "completed". It must end up interrupted/failed and be safely re-runnable;
-  - a test that an old process can't keep serving while the new one fails to bind.
-- Reservation: ADR-020. No schema, unless a job-status value is needed; that takes v5 after an ADR note.
-
-## Dependencies
-- W2 → W1 commit: satisfied (`a9783bb`). W2 must rebase its local work on the current HEAD (shared files: database.py, repository.py, pipeline.py, routes.py, app.js, index.html, styles.css).
-- M2 → a W2 decision + clean tree + approval by the owner or Itay (acting owner).
-
-## Reservations
-- Schema: v3 = W2 (committed e806743), v4 = W1 (committed), **v5 = curation_labels + ai_label_proposals (committed `8454783`, עובד תיוג #1). Next free: v6.**
-- ADR: 016 = W2 (uncommitted), 017 = W1, 018 = W1, 019 = W3 (dashboard), 020 = W4 (dev reload, committed), 021 = PM (technical flags demote, not exclude), 022 = curation labels (reserved), 023 = Quality Worker #2 (time-windowed near-dup threshold, reserved). **Next free: ADR-024.**
+## Reservations (next free — full history in the archive)
+- Schema: next free **v6**.
+- ADR: next free **ADR-024**.
 
 ## Backlog (unassigned, not started)
-- UI: a convenient way to jump directly to a specific photo (e.g. by ID or filename) for review, instead of only browsing — came up reviewing a data-quality question (photo 2267) with no easy way back to it in the UI (owner-requested 2026-09-27).
-- ~~Warn before scanning OneDrive cloud-only files~~: moved into W2's scope (see W2 section — real incident 2026-09-26).
-- Calibrate the quality thresholds on a real library (the review labels from W1 make this measurable; do it before or with M2).
+- UI: jump directly to a specific photo by ID/filename during review, instead of only browsing.
+- Calibrate quality thresholds on a real library (do before/with M2).
 - HEIC decoder licensing (pillow-heif = POC_ONLY).
 - `httpx` TestClient deprecation warning.
-- The duplicate file `PRINT_INTEGRATION (1).md` (the owner may delete it).
-- ~~CLAUDE.md rule 1a~~: committed in `6a7a1eb`.
+- Duplicate file `PRINT_INTEGRATION (1).md` (owner may delete it).
 
-## Product direction update (owner, 2026-09-26 ~17:25), SUPERSEDES the "people & animals = memories" wording below
-- The rule-based filter makes only technical judgments. Its wording is neutral ("הסינון הציע להוציא" / "פחות מתאימה כרגע לאלבום"). Relevance (landscapes, objects, even screenshots) is decided later by the album request + semantic signals (M2+). Sent to W1.
+## Scheduled triggers (only the still-live one; fired one-shots moved to the archive)
+| Trigger | Mechanism | Fires | Action | Must stay alive | If it fails |
+|---|---|---|---|---|---|
+| 24/7 autonomous operation, every 5h | `mcp__scheduled-tasks` task `album-pm2-overnight` (self-rescheduling one-shot, file: `C:\Users\idan1\.claude\scheduled-tasks\album-pm2-overnight\SKILL.md`) | every 5h, from 2026-09-27 03:15 Israel time, ongoing | Check every active/waiting worker, advance whatever the protocol allows without owner judgment, push pending doc commits, append one factual entry to `project_management/PM2_AUTONOMOUS_LOG.md`, reschedule its own next run +5h | Claude desktop app open at some point per interval (catches up on next launch) | Silent stop if the reschedule step itself fails — check `list_scheduled_tasks`/the Scheduled sidebar if progress stalls well past 5h |
+| Worker finishes / network error | The worker reports + a one-shot `notify_when_idle` | On idle | Verify → next step, or resend "continue" if it died on an API/network error | Same | Owner flags a worker that looks stuck |
 
-## Product direction update (owner, 2026-09-26 ~15:25)
-- The album's goal is photos of **people and animals**. Everything else is irrelevant. Detecting people/animals needs an ML model, so it belongs to M2/M3 and requires a license check plus the owner's approval of M2. The PM flagged to the owner that trip albums may want landscapes too.
-- Print size / PPI must be **invisible to the customer**. It stays internal (automatic layout decisions later). W1 is removing it from the UI (ADR-017 → internal-only).
-- The "tiny" photos are tiny on disk (160 px, ~6 KB). Our ingest doesn't degrade them. CONFIRMED by the owner (15:30): copying from the iPhone photo folder to Windows produces low-res files. Deferred task T6: research the correct import path (iPhone "Keep Originals" setting / Windows Photos import / iCloud / OneDrive camera upload) + warn customers when the imported files look like previews. This is also an input to the future PhotoKit design.
-- PM HANDOFF NOTE (15:30, quota near 100%, resets 18:40): W1 is processing the direction message (hide print size, "not a memory" framing, delete-bug fix already done; 88 tests at the last report; NO commit). W3 is paused cleanly (sources done; next: tests → server → UI). W2 is waiting. After the reset: check W1's report → owner manual test → W1 commit → resume W2 → resume W3.
-- The current filter is rules-based, not ML, and doesn't learn. Feedback labels are stored for calibration and future learning.
-
-## Product direction for filtering/review (owner, 2026-09-26)
-Goal: filtering is effective, **no photo is ever lost**, and the customer can comfortably review what the filter did and give feedback. Core screen = review of the filter's decisions: a summary by reason, a batch grid review, one-tap restore/disagree, a side-by-side duplicate pick; a single-photo viewer only for doubtful cases. Sent to W1 as the rework priority.
+## Dependencies right now
+- Curation Lead's `evaluation/retrieval_eval.py` imports `build_model`/`embed_images`/`embed_text` read-only from 7a's `poc_7a_semantic_search.py` (committed `da36904`) — 7a must not rename those signatures without telling Curation Lead first.
