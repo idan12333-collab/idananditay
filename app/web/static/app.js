@@ -74,6 +74,8 @@ function resetLibraryUI() {
   fs.tab = null; fs.offset = 0; fs.total = 0; fs.items.clear(); fs.token++;
   if ($("viewer").open) $("viewer").close();
   $("reviewCard").hidden = true;
+  $("seedCard").hidden = true; lab.token++;
+  if ($("labeler").open) $("labeler").close();
   ["fsHeadline", "fsFeedback", "fsReasons", "fsHint", "fsGrid", "fsDups", "reviewSummary",
    "stats", "years", "grid", "dupList", "errorList", "resultInfo"].forEach((id) => { $(id).innerHTML = ""; });
   $("fsMore").hidden = true; $("moreBtn").hidden = true;
@@ -580,6 +582,7 @@ function renderReview(p) {
   $("vNote").hidden = !r?.note;
   $("vNoteLink").hidden = !!r?.note;
   $("vClear").hidden = !r;
+  $("vNominateState").textContent = "";
 }
 
 async function saveReview(verdict, reasons) {
@@ -870,6 +873,7 @@ async function fsRerenderGroup(gEl, anyMemberId) {
 
 async function refreshReview() {
   refreshFilterSummary();
+  refreshSeedCard();
   if (!state.libraryId) return;
   const lib = state.libraryId;
   let s;
@@ -891,6 +895,128 @@ async function startReview() {
   const first = $("grid").querySelector(".tile");
   if (first) openViewer(Number(first.dataset.id), $("grid"));
   else alert("כל התמונות בסינון הזה כבר נבדקו");
+}
+
+// ------------------------------------------------------- quick labeling (ADR-022)
+// The owner marks a fixed seed sample: 1 must / 2 maybe / 3 no, S = special moment. Blind on purpose:
+// no filter verdict, scores or AI hints are shown. Labels never change the filter's decision.
+const lab = { lib: null, item: null, special: false, busy: false, token: 0 };
+const W_HE = { must: "חובה", maybe: "אולי", no: "לא" };
+
+async function refreshSeedCard() {
+  const lib = state.libraryId;
+  if (!lib) return;
+  const token = lab.token;
+  let s = null, err = null;
+  try { s = await api(`/api/libraries/${lib}/seed`); } catch (e) { err = e; }
+  if (lib !== state.libraryId || token !== lab.token) return;
+  $("seedCard").hidden = false;
+  $("seedError").textContent = "";
+  $("seedCreateBtn").hidden = !!s;
+  $("seedStartBtn").hidden = !s;
+  $("seedExport").hidden = !s;
+  $("seedExport").href = `/api/libraries/${lib}/curation/export`;
+  $("seedReplace").hidden = !s;
+  if (!s) { $("seedStatus").textContent = err && !/מדגם/.test(err.message) ? err.message : "עוד אין מדגם לתיוג בספרייה הזו."; return; }
+  const pr = s.progress, pctDone = pr.total ? Math.round((100 * pr.labeled) / pr.total) : 0;
+  $("seedStartBtn").textContent = pr.labeled ? (s.done ? "מעבר על הסימונים" : "המשך תיוג") : "התחל תיוג";
+  const dups = pr.dup_groups ? `<div class="muted">קבוצות כפילויות במדגם: ${num(pr.dup_groups_picked)} / ${num(pr.dup_groups)} נבחרה בהן המועדפת (בחירה בתצוגת "קבוצות כפילויות")</div>` : "";
+  $("seedStatus").innerHTML = `סומנו <b>${num(pr.labeled)}</b> מתוך <b>${num(pr.total)}</b>${s.done ? " · ✓ הסתיים" : ""}
+    <div class="progress"><div class="bar" style="width:${pctDone}%"></div></div>${dups}
+    ${pr.missing ? `<div class="error">${num(pr.missing)} תמונות מהמדגם כבר לא נמצאות בתיקייה (הקבצים הועברו או הוחלפו), ולכן מדלגים עליהן.
+      אם התיקייה השתנתה: "סריקה מחדש" ואז "יצירת מדגם חדש".</div>` : ""}`;
+}
+
+async function createSeed(replace = false) {
+  if (replace && !confirm("ליצור מדגם חדש מהתמונות שנמצאות עכשיו בספרייה?\nהסימונים שכבר עשית נשמרים. כדאי לסרוק מחדש לפני כן.")) return;
+  $("seedCreateBtn").disabled = true;
+  try {
+    await api(`/api/libraries/${state.libraryId}/seed${replace ? "?replace=true" : ""}`, { method: "POST" });
+  } catch (e) { $("seedError").textContent = e.message; }
+  finally { $("seedCreateBtn").disabled = false; }
+  await refreshSeedCard();
+}
+
+function openLabeler() {
+  lab.lib = state.libraryId;
+  $("labeler").showModal();
+  loadSeedItem(null);
+}
+
+// index: show that position; otherwise the next unlabeled photo after `after` (skipped ones stay for later).
+async function loadSeedItem(index, after = null) {
+  const token = ++lab.token;
+  let s;
+  const q = index != null ? `?index=${index}` : after != null ? `?after=${after}` : "";
+  try { s = await api(`/api/libraries/${lab.lib}/seed${q}`); }
+  catch (e) { showLabelerMsg(e.message); return; }
+  if (token !== lab.token) return;
+  lab.item = s.item;
+  lab.special = !!s.item?.label?.special;
+  const pr = s.progress;
+  if (!s.item) {
+    $("lImg").removeAttribute("src");
+    $("lPos").textContent = `${num(pr.labeled)} / ${num(pr.total)}`;
+    showLabelerMsg(s.done ? "✓ סיימת לתייג את כל המדגם. תודה! אפשר לסגור (Esc)." : "אין תמונות לתיוג.");
+    renderLabelerBar();
+    return;
+  }
+  $("lMsg").hidden = true;
+  $("lLoading").hidden = false;
+  $("lImg").onload = () => { $("lLoading").hidden = true; };
+  $("lImg").onerror = () => { $("lLoading").hidden = true; $("lImg").removeAttribute("src");
+    showLabelerMsg("התמונה לא נטענה. אפשר לדלג עליה (←) ולהמשיך."); };
+  $("lImg").src = s.item.preview_url;
+  $("lPos").textContent = `${num(s.item.index + 1)} / ${num(pr.total)}`;
+  renderLabelerBar();
+}
+
+function showLabelerMsg(text) { $("lMsg").textContent = text; $("lMsg").hidden = false; }
+
+function renderLabelerBar() {
+  const w = lab.item?.label?.worthiness;
+  document.querySelectorAll("#labeler .l-w").forEach((b) => { b.classList.toggle("active", b.dataset.w === w); b.disabled = !lab.item; });
+  $("lSpecial").classList.toggle("on", lab.special);
+  $("lSpecial").disabled = !lab.item;
+}
+
+async function saveCuration(worthiness, advance) {
+  const it = lab.item;
+  if (!it || lab.busy) return;
+  lab.busy = true;
+  try {
+    it.label = await api(`/api/photos/${it.photo_id}/curation`, { method: "PUT",
+      body: JSON.stringify({ worthiness, special: lab.special, stratum: it.stratum }) });
+  } catch (e) { alert(`השמירה נכשלה: ${e.message}`); return; }
+  finally { lab.busy = false; }
+  renderLabelerBar();
+  if (advance) loadSeedItem(null, it.index);  // the next unlabeled photo after this one
+}
+
+function toggleSpecial() {
+  if (!lab.item) return;
+  lab.special = !lab.special;
+  renderLabelerBar();
+  if (lab.item.label) saveCuration(lab.item.label.worthiness, false);  // already labeled: save now
+}
+
+function labelerSkip() {
+  if (lab.item) loadSeedItem(lab.item.index + 1);  // not labeled; it stays in the queue for later
+}
+
+function labelerBack() {
+  if (lab.item && lab.item.index > 0) loadSeedItem(lab.item.index - 1);
+  else if (!lab.item) loadSeedItem(1e9);  // from the "done" message: the last item
+}
+
+async function nominateCurrent() {
+  const p = viewer.photo;
+  if (!p) return;
+  try {
+    const r = await api(`/api/photos/${p.id}/nominate`, { method: "POST" });
+    $("vNominateState").textContent = r.added ? "✓ נוספה לתיוג המהיר" : "כבר נמצאת בתיוג המהיר";
+    refreshSeedCard();
+  } catch (e) { $("vNominateState").textContent = e.message; }
 }
 
 // ------------------------------------------------------------------- wiring
@@ -936,6 +1062,24 @@ document.addEventListener("keydown", (e) => {
 });
 $("viewer").addEventListener("close", () => { $("vImg").removeAttribute("src"); viewer.photo = null; });
 $("reviewStartBtn").addEventListener("click", startReview);
+$("seedCreateBtn").addEventListener("click", () => createSeed(false));
+$("seedStartBtn").addEventListener("click", openLabeler);
+$("lClose").addEventListener("click", () => $("labeler").close());
+$("lSpecial").addEventListener("click", toggleSpecial);
+$("lBack").addEventListener("click", labelerBack);
+$("lSkip").addEventListener("click", labelerSkip);
+$("seedReplace").addEventListener("click", (e) => { e.preventDefault(); createSeed(true); });
+document.querySelectorAll("#labeler .l-w").forEach((b) => b.addEventListener("click", () => saveCuration(b.dataset.w, true)));
+$("labeler").addEventListener("close", () => { lab.token++; $("lImg").removeAttribute("src"); lab.item = null; refreshSeedCard(); });
+document.addEventListener("keydown", (e) => {
+  if (!$("labeler").open || e.ctrlKey || e.altKey || e.metaKey) return;
+  const actions = { 1: () => saveCuration("must", true), 2: () => saveCuration("maybe", true), 3: () => saveCuration("no", true),
+    s: toggleSpecial, S: toggleSpecial, "ד": toggleSpecial,  // S on a Hebrew keyboard layout
+    Backspace: labelerBack, ArrowRight: labelerBack,  // RTL: right = back, as in the review viewer
+    ArrowLeft: labelerSkip };
+  if (actions[e.key]) { e.preventDefault(); actions[e.key](); }
+});
+$("vNominate").addEventListener("click", nominateCurrent);
 $("fsMore").addEventListener("click", fsLoadMore);
 
 $("reloadBtn").addEventListener("click", () => location.reload());

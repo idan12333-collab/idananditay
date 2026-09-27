@@ -68,6 +68,20 @@
     </details>
   </section>
 
+  <!-- Quick labeling (ADR-022): the owner's album preference on a fixed seed sample. Blind. -->
+  <section class="card" id="seedCard" hidden>
+    <h2>תיוג מהיר</h2>
+    <p class="muted">מה היית רוצה באלבום? סימון מהיר במקלדת של מדגם קבוע מהספרייה. הסימון לא משנה את הסינון.</p>
+    <div id="seedStatus" class="seed-status"></div>
+    <div class="row">
+      <button id="seedCreateBtn" hidden>צור מדגם</button>
+      <button id="seedStartBtn" hidden>התחל תיוג</button>
+      <a id="seedExport" class="muted" href="#" download hidden>ייצוא CSV</a>
+      <a id="seedReplace" class="muted" href="#" hidden>יצירת מדגם חדש</a>
+    </div>
+    <div id="seedError" class="error"></div>
+  </section>
+
   <section class="card" id="galleryCard" hidden>
     <div class="row between">
       <h2>3. תמונות</h2>
@@ -158,6 +172,10 @@
         </span>
       </div>
       <textarea id="vNote" rows="2" placeholder="הערה" hidden></textarea>
+      <div class="row v-nominate-row">
+        <button id="vNominate" class="secondary small" title="הוספה לתיוג המהיר">★ חשובה</button>
+        <span id="vNominateState" class="muted"></span>
+      </div>
     </section>
 
     <details id="vTech" class="v-tech">
@@ -166,6 +184,28 @@
       <label class="v-advance"><input type="checkbox" id="vAdvance"> מעבר אוטומטי לתמונה הבאה אחרי סימון</label>
     </details>
   </aside>
+</dialog>
+
+<!-- Quick labeling (ADR-022): the photo fills the screen; keys 1/2/3 + S. No scores or AI hints. -->
+<dialog id="labeler" class="viewer labeler">
+  <div class="v-stage">
+    <img id="lImg" alt="">
+    <div id="lMsg" class="v-stage-note" hidden></div>
+    <div id="lLoading" class="v-loading" hidden>טוען…</div>
+    <div class="v-toolbar">
+      <button id="lClose" class="small" title="Esc">✕ סגירה</button>
+      <span id="lPos" class="v-pos"></span>
+    </div>
+  </div>
+  <div class="l-bar">
+    <span class="l-q">באלבום?</span>
+    <button class="l-w" data-w="must">חובה <kbd>1</kbd></button>
+    <button class="l-w" data-w="maybe">אולי <kbd>2</kbd></button>
+    <button class="l-w" data-w="no">לא <kbd>3</kbd></button>
+    <button id="lSpecial" class="l-special">★ רגע מיוחד <kbd>S</kbd></button>
+    <button id="lBack" class="secondary l-back" title="Backspace / →">→ חזרה</button>
+    <button id="lSkip" class="secondary l-back" title="← (בלי לסמן)">דלג ←</button>
+  </div>
 </dialog>
 
 <dialog id="fbDialog" class="fb">

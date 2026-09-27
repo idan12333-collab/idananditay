@@ -7,6 +7,7 @@ import io
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -16,7 +17,10 @@ from pydantic import BaseModel
 
 from app import __version__
 from app.core.instance import APP_NAME, BUILD_ID, process_id
-from app.db.repository import PHOTO_FILTERS, PHOTO_SORTS, REVIEW_REASONS, REVIEW_VERDICTS, Repository
+from app.curation import seed as seed_sample
+from app.db.repository import (
+    CURATION_WORTHINESS, PHOTO_FILTERS, PHOTO_SORTS, REVIEW_REASONS, REVIEW_VERDICTS, Repository,
+)
 from app.ingest.imaging import HEIC_SUPPORTED, to_rgb
 from app.ingest.scanner import SUPPORTED_EXTENSIONS, normalize_exclusion
 from app.printing.suitability import PrintPolicy, assess
@@ -425,6 +429,151 @@ def export_reviews(library_id: int, request: Request, format: str = "json"):
     for r in rows:
         writer.writerow({**r, "reasons": ";".join(r["reasons"])})
     # BOM so Excel opens Hebrew paths correctly.
+    return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8", headers=disposition)
+
+
+# ------------------------------------------------------- quick labeling (ADR-022)
+# The owner's album preference on a fixed seed sample. Blind: no scores, flags or AI suggestions are
+# returned here. Stored in curation_labels, which the filter never reads (filtered/kept unchanged).
+_seed_lock = threading.Lock()  # the sample file is rewritten when the owner nominates a photo
+NO_SAMPLE = "אין עדיין מדגם לתיוג בספרייה הזו. לחצו על \"צור מדגם\" (או הריצו evaluation/make_seed_sample.py)."
+
+
+def _sample_file(request: Request, library_id: int) -> Path:
+    return seed_sample.sample_path(request.app.state.settings.data_dir, library_id)
+
+
+def _load_sample_or_404(request: Request, library_id: int) -> dict:
+    sample = seed_sample.load_sample(_sample_file(request, library_id))
+    if sample is None:
+        raise HTTPException(404, NO_SAMPLE)
+    return sample
+
+
+def _seed_state(request: Request, library_id: int, sample: dict, index: int | None, after: int | None = None) -> dict:
+    repo = _repo(request)
+    queue = []
+    missing = 0
+    for it in sample["items"]:
+        if it["stratum"] not in seed_sample.LABELED_STRATA:
+            continue
+        photo = repo.find_photo_by_content(library_id, it["content_hash"], it.get("photo_id"))
+        if photo is None or not seed_sample.original_exists(photo):
+            missing += 1  # removed/moved since sampling (or since the last scan): can't be shown, skipped
+            continue
+        queue.append({**it, "photo_id": photo["id"], "_photo": photo})
+    labels = repo.curation_labels_for(it["content_hash"] for it in queue)
+    progress = repo.seed_progress(queue)
+    dup_groups = {it["group_id"] for it in sample["items"] if it["stratum"] == "dup_groups"}
+    picks = repo.get_duplicate_picks()
+    picked = {it["group_id"] for it in sample["items"] if it["stratum"] == "dup_groups" and it["content_hash"] in picks}
+    progress.update({"missing": missing, "dup_groups": len(dup_groups), "dup_groups_picked": len(picked & dup_groups),
+                     "shortfall": sample.get("shortfall", {})})
+    if index is None:
+        # The next unlabeled item after `after` (skipped items are left for later), else the first unlabeled.
+        unlabeled = [i for i, it in enumerate(queue) if it["content_hash"] not in labels]
+        index = next((i for i in unlabeled if after is None or i > after), unlabeled[0] if unlabeled else None)
+    elif queue:
+        index = max(0, min(index, len(queue) - 1))
+    else:
+        index = None
+    item = None
+    if index is not None:
+        it = queue[index]
+        photo = it["_photo"]
+        v = _media_version(photo)
+        item = {"index": index, "photo_id": photo["id"], "stratum": it["stratum"],
+                "preview_url": f"/api/photos/{photo['id']}/preview?v={v}",
+                "label": labels.get(it["content_hash"])}
+    return {"library_id": library_id, "progress": progress, "done": progress["labeled"] >= progress["total"],
+            "item": item}
+
+
+@router.get("/libraries/{library_id}/seed")
+def get_seed(library_id: int, request: Request, index: int | None = Query(None, ge=0),
+             after: int | None = Query(None, ge=-1)) -> dict:
+    """The next unlabeled seed item (after position `after`, if given), or the one at `index` + progress."""
+    _get_library_or_404(request, library_id)
+    return _seed_state(request, library_id, _load_sample_or_404(request, library_id), index, after)
+
+
+@router.post("/libraries/{library_id}/seed", status_code=201)
+def create_seed(library_id: int, request: Request, replace: bool = False) -> dict:
+    """Create the library's seed sample (deterministic). An existing one is replaced only with
+    `replace=true` (e.g. the folder changed); it is kept as a .bak file, and labels are never deleted."""
+    _get_library_or_404(request, library_id)
+    _no_scan_running(request, library_id)
+    path = _sample_file(request, library_id)
+    with _seed_lock:
+        if path.exists() and not replace:
+            raise HTTPException(409, "A seed sample already exists for this library")
+        sample = seed_sample.build_sample(_repo(request), library_id)
+        if not sample["items"]:
+            raise HTTPException(400, "לא נמצאו בספרייה תמונות שאפשר להציג. סרקו את התיקייה מחדש ונסו שוב.")
+        if path.exists():
+            path.replace(path.with_suffix(".bak"))
+        seed_sample.save_sample(path, sample)
+    return {"counts": sample["counts"], "shortfall": sample["shortfall"],
+            **_seed_state(request, library_id, sample, None)}
+
+
+class CurationIn(BaseModel):
+    worthiness: str
+    special: bool = False
+    stratum: str | None = None
+
+
+@router.put("/photos/{photo_id}/curation")
+def set_curation(photo_id: int, body: CurationIn, request: Request) -> dict:
+    """The owner's album preference for a photo (must / maybe / no + special). Never changes the filter."""
+    p = _get_photo_or_404(request, photo_id)
+    if p["status"] != "ok" or not p.get("content_hash"):
+        raise HTTPException(400, "Only analyzed photos can be labeled")
+    if body.worthiness not in CURATION_WORTHINESS:
+        raise HTTPException(400, f"worthiness must be one of: {', '.join(CURATION_WORTHINESS)}")
+    stratum = body.stratum
+    if stratum is None:
+        sample = seed_sample.load_sample(_sample_file(request, p["library_id"]))
+        stratum = next((it["stratum"] for it in (sample or {}).get("items", [])
+                        if it["content_hash"] == p["content_hash"]), None)
+    return _repo(request).set_curation_label(p, body.worthiness, body.special, stratum,
+                                             seed_sample.is_held_out(p["content_hash"]))
+
+
+@router.delete("/photos/{photo_id}/curation")
+def delete_curation(photo_id: int, request: Request) -> dict:
+    p = _get_photo_or_404(request, photo_id)
+    return {"deleted": _repo(request).delete_curation_label(p.get("content_hash"))}
+
+
+@router.post("/photos/{photo_id}/nominate")
+def nominate_photo(photo_id: int, request: Request) -> dict:
+    """"★ חשובה": add this photo to the library's seed sample (stratum `nominated`)."""
+    p = _get_photo_or_404(request, photo_id)
+    if p["status"] != "ok" or not p.get("content_hash"):
+        raise HTTPException(400, "Only analyzed photos can be nominated")
+    path = _sample_file(request, p["library_id"])
+    with _seed_lock:
+        sample = _load_sample_or_404(request, p["library_id"])
+        added = seed_sample.nominate(sample, p)
+        if added:
+            seed_sample.save_sample(path, sample)
+    return {"added": added}
+
+
+@router.get("/libraries/{library_id}/curation/export")
+def export_curation(library_id: int, request: Request):
+    """CSV of the owner's curation labels in this library (for the Curation Lead's metrics)."""
+    _get_library_or_404(request, library_id)
+    rows = _repo(request).export_curation_labels(library_id)
+    cols = ["photo_id", "rel_path", "content_hash", "capture_time", "worthiness", "special", "stratum", "held_out",
+            "blind", "source", "filtered", "filter_reason", "is_blurry", "is_screenshot", "exposure_issue",
+            "quality_score", "created_at", "updated_at"]
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
+    disposition = {"Content-Disposition": f'attachment; filename="curation_labels_{library_id}.csv"'}
     return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8", headers=disposition)
 
 

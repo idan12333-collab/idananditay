@@ -24,8 +24,10 @@ MAX_MIGRATION_BACKUPS = 5
 class MigrationBackupError(RuntimeError):
     """The pre-migration backup could not be made; the migration was NOT applied."""
 
-SCHEMA_VERSION = 4  # v3 (ADR-016): library_exclusions table — additive, created by SCHEMA on every start
+SCHEMA_VERSION = 5  # v3 (ADR-016): library_exclusions table — additive, created by SCHEMA on every start
 # v4 (2026-09-26): drop photos.is_low_res, quality_score without resolution, review_labels (ADR-017/018)
+# v5 (ADR-022): curation_labels + ai_label_proposals — additive, created by SCHEMA (like v3, it has no
+#     migration step; the I-004 backup still runs because the stored version is older)
 
 # Tables whose IDs appear in URLs, labels or projects. AUTOINCREMENT guarantees a deleted ID is
 # never handed out again (plain INTEGER PRIMARY KEY reuses max(id)+1 after deletes).
@@ -131,6 +133,34 @@ CREATE TABLE IF NOT EXISTS review_labels (
 CREATE TABLE IF NOT EXISTS duplicate_picks (
     content_hash  TEXT PRIMARY KEY,
     created_at    TEXT NOT NULL
+);
+
+-- The owner's album preference per photo (ADR-022): "do I want this in an album?". Separate from
+-- review_labels (technical correctness): never read by the filter, so it never changes filtered/kept.
+-- Keyed by content; rel_path/capture_time let labels be remapped if the photo is re-imported.
+CREATE TABLE IF NOT EXISTS curation_labels (
+    content_hash TEXT PRIMARY KEY,
+    worthiness   TEXT NOT NULL CHECK (worthiness IN ('must','maybe','no')),
+    special      INTEGER NOT NULL DEFAULT 0,
+    source       TEXT NOT NULL DEFAULT 'owner',
+    blind        INTEGER NOT NULL DEFAULT 1,
+    held_out     INTEGER NOT NULL DEFAULT 0,
+    stratum      TEXT,
+    rel_path     TEXT,
+    capture_time TEXT,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+
+-- AI label suggestions (ADR-022, filled later by I-017). Never read as labels.
+CREATE TABLE IF NOT EXISTS ai_label_proposals (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_hash TEXT NOT NULL,
+    label        TEXT NOT NULL,
+    value        TEXT NOT NULL,
+    confidence   REAL,
+    model_id     TEXT NOT NULL,
+    created_at   TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS jobs (

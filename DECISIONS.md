@@ -261,3 +261,14 @@ without the env vars.
 **Why:** a hard technical cut can permanently hide important moments that later semantic/people signals would have rescued. Verified by the Curation Quality Track gate (false-exclusion measurements).
 
 **Tradeoff:** more candidates reach ranking (compute cost, and ranking must handle junk). **Changeable:** yes, but only with evaluation-set evidence.
+
+## ADR-022 — Curation labels: the owner's album preference, apart from the filter
+**Status:** Accepted (2026-09-26, עובד תיוג #1; spec by the Curation Lead in `evaluation/LABEL_SCHEMA.md` / `SEED_WORKER_BRIEF.md`; concept approved by the owner via the I-009 gate).
+
+**Decision.** Schema v5 adds `curation_labels` (content_hash → `worthiness` must/maybe/no, `special`, `source`, `blind`, `held_out`, `stratum`, `rel_path`, `capture_time`) and an empty `ai_label_proposals` table (for I-017; never read as labels). Additive, created by SCHEMA like v3; the I-004 backup runs because the stored version is older. No filter SQL reads `curation_labels`, so a curation label can never change `filtered`/`kept` or `review_stats` (tested). A deterministic per-library **seed sample** (`app/curation/seed.py`: ~150 kept photos stratified by month, ~70 filtered photos spread over the primary reasons with ≥10 each when available, ~15 whole duplicate groups for the existing side-by-side pick, plus owner "★ חשובה" nominations; `held_out` = `int(hash[:8],16) % 10 < 3`) is labeled in the blind "תיוג מהיר" screen (1/2/3 + S, auto-advance, Backspace/→ back). No scores, flags or AI hints are shown there.
+
+**Deviations from the brief (PM informed).** The sample file lives in the app data dir (`<data>/seed/seed_sample_lib<id>.json`), not in `evaluation/`, because it holds the owner's photo IDs and must never reach git. It can be created from the screen ("צור מדגם", `POST /api/libraries/{id}/seed`) as well as from `evaluation/make_seed_sample.py` (read-only DB), because the owner does not use a CLI. A sample is never replaced from the UI.
+
+**Tradeoffs.** A 3-level scale (faster, more consistent) instead of 5 levels. Labels are keyed by content, so deleting a library keeps them (use `delete_all_curation_labels` for privacy). Later labeling rounds can append items to the sample (as nominations do) without changing the schema.
+
+**Reversible?** Yes: drop the two tables and the endpoints; nothing else depends on them.

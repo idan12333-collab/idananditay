@@ -94,6 +94,8 @@ REVIEW_REASONS = ("blurry", "exposure", "low_res", "screenshot", "duplicate", "n
 FLAG_REASON = {"blurry": "blurry", "exposure": "exposure", "screenshot": "screenshot", "extreme_low_res": "low_res",
                "duplicate": "duplicate"}
 
+CURATION_WORTHINESS = ("must", "maybe", "no")  # ADR-022: keys 1/2/3 in quick labeling
+
 PHOTO_SORTS: dict[str, str] = {
     "date": "capture_time IS NULL, capture_time, id",
     "date_desc": "capture_time IS NULL, capture_time DESC, id",
@@ -585,6 +587,96 @@ class Repository:
             d["extreme_low_res"] = self.print_policy.is_extremely_low(d["width"] or 0, d["height"] or 0)
             out.append(d)
         return out
+
+    # ------------------------------------------------------- curation labels
+    # The owner's album preference (ADR-022). Stored apart from review_labels and never referenced
+    # by PHOTO_FILTERS, so a curation label cannot change filtered/kept or review_stats.
+    def get_curation_label(self, content_hash: str | None) -> dict | None:
+        if not content_hash:
+            return None
+        with self.db.connect() as c:
+            return _row(c.execute("SELECT * FROM curation_labels WHERE content_hash = ?", (content_hash,)).fetchone())
+
+    def set_curation_label(
+        self, photo: dict, worthiness: str, special: bool = False, stratum: str | None = None, held_out: bool = False
+    ) -> dict:
+        if worthiness not in CURATION_WORTHINESS:
+            raise ValueError(f"worthiness must be one of {CURATION_WORTHINESS}")
+        if not photo.get("content_hash"):
+            raise ValueError("photo has no content hash (not analyzed)")
+        now = now_iso()
+        with self.db.connect() as c:
+            c.execute(
+                "INSERT INTO curation_labels(content_hash, worthiness, special, source, blind, held_out, stratum, "
+                "rel_path, capture_time, created_at, updated_at) VALUES(?, ?, ?, 'owner', 1, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(content_hash) DO UPDATE SET worthiness = excluded.worthiness, special = excluded.special, "
+                "held_out = excluded.held_out, stratum = COALESCE(excluded.stratum, curation_labels.stratum), "
+                "rel_path = excluded.rel_path, capture_time = excluded.capture_time, updated_at = excluded.updated_at",
+                (photo["content_hash"], worthiness, int(bool(special)), int(bool(held_out)), stratum,
+                 photo.get("rel_path"), photo.get("capture_time"), now, now),
+            )
+        return self.get_curation_label(photo["content_hash"])  # type: ignore[return-value]
+
+    def delete_curation_label(self, content_hash: str | None) -> bool:
+        if not content_hash:
+            return False
+        with self.db.connect() as c:
+            return c.execute("DELETE FROM curation_labels WHERE content_hash = ?", (content_hash,)).rowcount > 0
+
+    def delete_all_curation_labels(self) -> int:
+        """Privacy: forget every curation label (all libraries)."""
+        with self.db.connect() as c:
+            return c.execute("DELETE FROM curation_labels").rowcount
+
+    def curation_labels_for(self, content_hashes: Iterable[str]) -> dict[str, dict]:
+        hashes = [h for h in content_hashes if h]
+        out: dict[str, dict] = {}
+        with self.db.connect() as c:
+            for i in range(0, len(hashes), 500):
+                chunk = hashes[i:i + 500]
+                q = f"SELECT * FROM curation_labels WHERE content_hash IN ({','.join('?' * len(chunk))})"
+                out.update({r["content_hash"]: dict(r) for r in c.execute(q, chunk)})
+        return out
+
+    def find_photo_by_content(self, library_id: int, content_hash: str, photo_id: int | None = None) -> dict | None:
+        """An analyzed photo of this library with this content (the given ID first, if it still matches)."""
+        with self.db.connect() as c:
+            row = c.execute(
+                "SELECT * FROM photos WHERE library_id = ? AND content_hash = ? AND status = 'ok' "
+                "ORDER BY id = ? DESC, id LIMIT 1", (library_id, content_hash, photo_id or -1),
+            ).fetchone()
+        return _row(row)
+
+    def seed_progress(self, items: Sequence[dict]) -> dict:
+        """Labeling progress over a seed sample's items ({content_hash, stratum}): total, labeled, per stratum."""
+        labeled = self.curation_labels_for(it["content_hash"] for it in items)
+        strata: dict[str, dict[str, int]] = {}
+        for it in items:
+            s = strata.setdefault(it["stratum"], {"total": 0, "labeled": 0})
+            s["total"] += 1
+            s["labeled"] += it["content_hash"] in labeled
+        return {"total": len(items), "labeled": sum(s["labeled"] for s in strata.values()), "strata": strata}
+
+    def export_curation_labels(self, library_id: int) -> list[dict]:
+        """Curation labels of this library's photos (one row per content) + the filter's decision."""
+        with self.db.connect() as c:
+            rows = c.execute(
+                # `photos` stays unaliased: the shared filter SQL refers to photos.content_hash.
+                self._sql(
+                    f"SELECT photos.id AS photo_id, photos.rel_path, photos.content_hash, photos.capture_time, "
+                    f"l.worthiness, l.special, l.stratum, l.held_out, l.blind, l.source, "
+                    f"{_FILTERED} AS filtered, {_PRIMARY} AS filter_reason, "
+                    f"photos.is_blurry, photos.is_screenshot, photos.exposure_issue, photos.quality_score, "
+                    f"l.created_at, l.updated_at "
+                    f"FROM photos JOIN curation_labels l ON l.content_hash = photos.content_hash "
+                    f"WHERE photos.library_id = ? AND photos.status = 'ok' "
+                    f"AND photos.id = (SELECT MIN(q.id) FROM photos q WHERE q.library_id = photos.library_id "
+                    f"AND q.status = 'ok' AND q.content_hash = photos.content_hash) "
+                    f"ORDER BY photos.capture_time, photos.rel_path"
+                ),
+                (library_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     # --------------------------------------------------------------------- jobs
     def create_job(self, job_id: str, library_id: int, kind: str) -> dict:

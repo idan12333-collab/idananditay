@@ -222,3 +222,18 @@ dialog.fb[open] { display: flex; }
 .fb-tile.excluded::after { content: ""; position: absolute; inset: 0; background: rgba(120,120,120,.6); pointer-events: none; }
 .fb-tile.excluded img { filter: grayscale(1); }
 .scan-summary { margin-top: 8px; font-size: 13px; }
+
+/* ------------------------------------------------ quick labeling (ADR-022) */
+.seed-status { margin: 8px 0; font-size: 15px; }
+.seed-status .progress { max-width: 420px; }
+.seed-status .bar { height: 100%; background: var(--accent); }
+dialog.labeler[open] { flex-direction: column; }
+.labeler .v-stage img { cursor: default; }
+.l-bar { flex: none; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+         padding: 12px 16px; border-top: 1px solid var(--line); background: var(--card); }
+.l-q { font-size: 18px; font-weight: 700; margin-inline-end: 6px; }
+.l-bar button { font-size: 18px; padding: 12px 22px; background: var(--card); color: var(--text); border: 2px solid var(--line); }
+.l-bar .l-w.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.l-bar .l-special.on { background: #f5b400; color: #1d1d1f; border-color: #f5b400; }
+.l-bar .l-back { font-size: 15px; margin-inline-start: 18px; }
+.v-nominate-row { margin-top: 10px; gap: 8px; align-items: center; }
