@@ -40,6 +40,25 @@ A round "improves" only if its target metric improves AND M1/M2 don't get worse 
 2. `evaluation/metrics.py` (Curation Lead, read-only DB access) joins curation_labels × the filter outcome (`filtered`/`kept`, primary reason) × duplicate_picks → writes `evaluation/reports/round0_<date>.md`.
 3. The report lists every M1/M2 failure with its photo id + reason, for review in the UI. These become the calibration input (blur/brightness/screenshot follow-ups in ROADMAP).
 
+## Retrieval rounds (7a+): per-query search quality
+Method and query bank: `queries_template_researched.md` (the owner's; it supersedes `queries_template.md`). Tooling: `evaluation/retrieval_eval.py`. M1–M5 above stay: they measure request-independent filtering, while this section measures "does a request find the right photos". The two lenses are reported side by side.
+
+| Metric | Definition |
+|---|---|
+| R1 Must-find recall@K | share of the owner's MUST_FIND photos in the top K (K = 20, 50) |
+| R2 P@10 | share of the top 10 graded ≥2 (relevant or excellent) |
+| R3 nDCG@20 | on the 0–3 grades |
+| R4 Hard-negative rate@10 | share of the top 10 the owner flagged as the confusable neighbour (sea↔pool, etc.) |
+| R5 Near-dup rate@20 | share of the top 20 that duplicate a higher-ranked result (same duplicate group) |
+| R6 he↔en overlap@20 | Jaccard overlap of the top 20 for the Hebrew vs. English wording of the same query |
+
+Ground-truth rules (from the owner's file, enforced by the tooling):
+1. Queries are chosen for feasibility with model help, but **MUST_FIND is picked by the owner from a date-browse page, never from model results**, and is frozen before any model is scored.
+2. Grades are **pooled**: the top 20 of every model × language, deduplicated and shuffled with the model hidden, graded once. The grades are reused for later models; only unseen results need grading.
+3. Everything is keyed by `content_hash` (library IDs are renumbered on re-create, as happened with library 14→15) and stored git-ignored under `reports/local/` (queries may name family members).
+4. ~25% of the chosen queries are held out: never used to tune prompts or thresholds.
+5. Library 15 spans only 2025–2026, so the time/cross-year queries (G3, D4, "Japan 2026") wait for a larger I-008 library. Rows 9–12 wait for 7b/events.
+
 ## Failure-mode log
 Every miss is classified: wrongly excluded · junk retained · wrong duplicate · moment missed · too similar · coverage gap · irrelevant to the request. The counts per class go in each round's report.
 

@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-09-27):** replaced by `queries_template_researched.md` (the owner's researched version). Kept for history only.
+
 # רשימת חיפושים לבדיקה (טיוטה של בעל המוצר)
 
 המטרה: חיפושים אמיתיים שהיית רוצה לעשות בספריית התמונות שלך. לפיהם נמדוד אם המערכת מוצאת את מה שאתה מצפה, ולא אם היא "נראית טוב בהדגמה".

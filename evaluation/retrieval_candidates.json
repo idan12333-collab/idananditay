@@ -1,0 +1,209 @@
+{
+ "note": "Round-1 candidate queries (7a, visual semantics only) from queries_template_researched.md. No personal data: queries naming people/places are added by the owner in the git-ignored local choice file. 'hn' = the confusable neighbour the owner may flag while grading (hard negative).",
+ "queries": [
+  {
+   "id": "dog_couch",
+   "he": "כלב על הספה",
+   "en": "a dog on the couch",
+   "hn": "כלב בחוץ / ספה בלי כלב"
+  },
+  {
+   "id": "sunset_sea",
+   "he": "שקיעה בים",
+   "en": "sunset at the beach",
+   "hn": "שקיעה בעיר / ים בצהריים"
+  },
+  {
+   "id": "restaurant",
+   "he": "אנשים אוכלים במסעדה",
+   "en": "people eating at a restaurant",
+   "hn": "שולחן ריק / אוכל בלי אנשים / אוכל בבית"
+  },
+  {
+   "id": "pool_swim",
+   "he": "מישהו שוחה בבריכה",
+   "en": "someone swimming in a pool",
+   "hn": "ים / אדם ליד בריכה"
+  },
+  {
+   "id": "cake_candles",
+   "he": "עוגת יום הולדת עם נרות",
+   "en": "a birthday cake with candles",
+   "hn": "עוגה בלי נרות / קינוח"
+  },
+  {
+   "id": "airport",
+   "he": "בתוך מטוס או בשדה תעופה",
+   "en": "inside an airplane or at an airport",
+   "hn": "מטוס רחוק בשמיים"
+  },
+  {
+   "id": "snow_people",
+   "he": "אנשים בשלג",
+   "en": "people in the snow",
+   "hn": "נוף מושלג בלי אנשים"
+  },
+  {
+   "id": "selfie_two",
+   "he": "סלפי של שני אנשים",
+   "en": "a selfie of two people",
+   "hn": "קבוצה גדולה / שניים שצולמו מרחוק"
+  },
+  {
+   "id": "holding_baby",
+   "he": "מישהו מחזיק תינוק",
+   "en": "someone holding a baby",
+   "hn": "תינוק לבד"
+  },
+  {
+   "id": "hugging",
+   "he": "אנשים מתחבקים",
+   "en": "people hugging",
+   "hn": "אנשים עומדים זה ליד זה"
+  },
+  {
+   "id": "gift",
+   "he": "מישהו פותח מתנה",
+   "en": "someone opening a gift",
+   "hn": "מתנה עטופה בלי אדם"
+  },
+  {
+   "id": "family_meal",
+   "he": "ארוחה משפחתית סביב שולחן",
+   "en": "a family meal around a table",
+   "hn": "מסעדה / שולחן ריק"
+  },
+  {
+   "id": "mountains",
+   "he": "נוף הרים בלי אנשים",
+   "en": "a mountain landscape without people",
+   "hn": "אנשים על רקע הרים"
+  },
+  {
+   "id": "city_night",
+   "he": "רחוב עירוני בלילה",
+   "en": "a city street at night",
+   "hn": "רחוב ביום / פנים בית בלילה"
+  },
+  {
+   "id": "child_running",
+   "he": "ילד רץ",
+   "en": "a child running",
+   "hn": "ילד עומד או יושב"
+  },
+  {
+   "id": "laughing",
+   "he": "אנשים צוחקים ביחד",
+   "en": "people laughing together",
+   "hn": "פרצופים רציניים / פוזה"
+  },
+  {
+   "id": "toast",
+   "he": "אנשים מרימים כוסית",
+   "en": "people raising a toast",
+   "hn": "כוסות על שולחן בלי אנשים"
+  },
+  {
+   "id": "play_dog",
+   "he": "מישהו משחק עם כלב",
+   "en": "someone playing with a dog",
+   "hn": "כלב לבד"
+  },
+  {
+   "id": "sea",
+   "he": "ים",
+   "en": "the sea",
+   "hn": "בריכה"
+  },
+  {
+   "id": "pool",
+   "he": "בריכה",
+   "en": "a swimming pool",
+   "hn": "ים"
+  },
+  {
+   "id": "beach_people",
+   "he": "אנשים בחוף הים",
+   "en": "people at the beach",
+   "hn": "חוף ריק / בריכה"
+  },
+  {
+   "id": "food_plate",
+   "he": "אוכל בצלחת",
+   "en": "food on a plate",
+   "hn": "צלחת ריקה / מסעדה בלי אוכל בפוקוס"
+  },
+  {
+   "id": "cat",
+   "he": "חתול",
+   "en": "a cat",
+   "hn": "כלב"
+  },
+  {
+   "id": "baby_sleeping",
+   "he": "תינוק ישן",
+   "en": "a sleeping baby",
+   "hn": "תינוק ער"
+  },
+  {
+   "id": "playground",
+   "he": "ילדים משחקים בגן שעשועים",
+   "en": "children playing at a playground",
+   "hn": "גן שעשועים ריק"
+  },
+  {
+   "id": "cathedral",
+   "he": "קתדרלה גותית גדולה",
+   "en": "a large gothic cathedral",
+   "hn": "כנסייה קטנה / בניין רגיל"
+  },
+  {
+   "id": "couple_landmark",
+   "he": "זוג מצטלם מול אתר תיירות",
+   "en": "a couple posing in front of a landmark",
+   "hn": "אתר תיירות בלי אנשים / אדם אחד"
+  },
+  {
+   "id": "shopping_arcade",
+   "he": "גלריה מקורה עם תקרת זכוכית",
+   "en": "a covered shopping arcade with a glass roof",
+   "hn": "קניון מודרני / רחוב פתוח"
+  },
+  {
+   "id": "pasta_pizza",
+   "he": "פסטה או פיצה על שולחן",
+   "en": "pasta or pizza on a table",
+   "hn": "אוכל אחר / צלחת ריקה"
+  },
+  {
+   "id": "gelato",
+   "he": "מישהו מחזיק גלידה",
+   "en": "someone holding an ice cream cone",
+   "hn": "גלידה בלי אדם / משקה"
+  },
+  {
+   "id": "tram",
+   "he": "חשמלית ברחוב",
+   "en": "a tram on a city street",
+   "hn": "אוטובוס / רכב"
+  },
+  {
+   "id": "hotel_room",
+   "he": "חדר מלון",
+   "en": "a hotel room",
+   "hn": "בית רגיל / מסעדה"
+  },
+  {
+   "id": "coffee_cafe",
+   "he": "קפה בבית קפה",
+   "en": "coffee at a cafe",
+   "hn": "קפה בבית / מסעדה"
+  },
+  {
+   "id": "shop_window",
+   "he": "חלון ראווה של חנות אופנה",
+   "en": "a fashion shop window",
+   "hn": "רחוב בלי חנויות"
+  }
+ ]
+}
