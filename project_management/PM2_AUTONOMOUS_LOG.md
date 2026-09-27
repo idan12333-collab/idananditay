@@ -23,3 +23,9 @@
 
 ### 2026-09-27 ~01:05 — cadence fixed to every 5h
 - Owner: wake the PM every 5 hours exactly, first run 03:15, and just tell it to continue the project. Since a plain cronExpression can't express "every 5h from an arbitrary start time" (24 isn't a multiple of 5), switched the task to a self-rescheduling one-time `fireAt`: first fire 2026-09-27T03:15:00+03:00, and each run resets its own `fireAt` to +5h before finishing. If a run ever fails before reaching that reschedule step, the chain silently stops — worth checking `list_scheduled_tasks` if nothing has moved for well over 5h.
+
+### 2026-09-27 10:00 — scheduled run (first entry by the task itself)
+- Found: the previous task run (session `local_f9c8895a…`, ~09:59) ended "interrupted by user" with no log entry. **The owner is active right now in the live PM #2 session** (last activity 10:01) and PM #2 is waiting on his answers to its 3 labeling re-test questions, so this run deliberately did NOT nudge workers, to avoid double-steering. Also, `send_message` is unavailable in unattended scheduled runs, so this task can't nudge workers anyway (this is a real limit on the design: nudging only works from the live PM #2 session).
+- Worker state (unchanged since ~01:20): Quality Worker #2 WAITING at `fb91b91` on branch `quality-worker-2`, clean worktree. עובד תיוג #1 WAITING on the owner's re-test (its changes are still uncommitted on main). עובד החרגות #1 (W2) idle since 2026-09-26 22:38, not yet resumed — its OneDrive-hang/cancel fix is what blocks the visible check of Quality #2's fix.
+- Did: rescheduled the next run to 15:00:47; pushed the unpushed PM doc commit `d24df5b` + this entry (log file only; other worker changes left untouched).
+- Waiting on the owner (one-line decisions): (1) labeling re-test → "approved, commit" to עובד תיוג #1; (2) Quality #2 merge: accept the large burst groups or tighten the window to 1.5s; (3) resume W2 (OneDrive-hang + cancel fix).
