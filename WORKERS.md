@@ -15,11 +15,13 @@ Before the interview, the PM checks the new session's cwd with list_sessions. It
 
 **Mandatory last step of EVERY onboarding, no exceptions (owner-flagged 2026-09-26, a real miss on Quality Worker #2 — the owner should never have to remind the PM):** immediately after renaming the session to its worker title — in the SAME batch of tool calls, before sending any brief or task content — the PM calls `ccd_sidebar move_sessions` to file it into "אלבום · פעילים". This is not conditional on remembering it later; it is step 3 of onboarding (see the numbered sequence below), done mechanically every time, worktree or not.
 
+**Reuse check, before any of the above (Efficiency & Sessions Lead #1, 2026-09-27, adopted by PM #3):** before asking the owner to open a brand-new session, check ACTIVE_WORK.md/WORKERS.md for a WAITING/idle worker with matching scope and still-light context (roughly under 150–200k). If one exists and the next task is closely related, reuse it instead of opening a fresh one — cheaper than rebuilding context, and this is now a required check, not a habit to remember. Only open a new session when no such match exists.
+
 **The fixed onboarding sequence (do all of these, in order, every time):**
 1. Verify/fix cwd (step 0 above).
 2. Rename the session to its worker title (`set_session_title`).
 3. File it into "אלבום · פעילים" (`ccd_sidebar move_sessions`) — right here, not deferred.
-4. Send the brief / start the interview.
+4. Send the brief / start the interview. **The brief itself must already contain the condensed "מצב נוכחי" block from ACTIVE_WORK.md plus the specific files the task needs** (Efficiency & Sessions Lead #1, 2026-09-27, adopted) — so the worker does not separately re-read the full ACTIVE_WORK.md/WORKERS.md history itself on top of the brief. That full-history read is exactly the token cost the current-state/archive split (see ACTIVE_WORK.md's restructuring note) was meant to remove for every future worker, not just PM handoffs.
 5. Update WORKERS.md (register the worker) and ACTIVE_WORK.md (status) — commit if the change is doc-only.
 
 ## Onboarding rule (owner, 2026-09-26)
@@ -142,8 +144,10 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Session `local_3c7e1461-6729-4dfa-98a4-093b841f08c4` (titled "יועץ מוצר ויעילות #1"). Status: **WAITING** (idle). Started: 2026-09-26 ~19:05. Passed its onboarding interview in one exchange and confirmed it's an advisor, not an implementer. First review is scheduled after the quota reset (trigger 22:17).
 
 ### אחראי בקרת איכות תמונות #1 (Curation & Evaluation Lead)
-- Session `local_eaba79d0-7816-4b66-a367-b722a7ed936c`. Status: **ACTIVE**. Started: 2026-09-26 ~23:10. Passed its onboarding interview (it had already checked its cwd). First deliverable: the owner's pre-trip labeled SEED (a few hundred photos), then EVAL_PLAN / LIBRARY_SPEC / LABEL_SCHEMA / queries / the baseline.
+- Session `local_eaba79d0-7816-4b66-a367-b722a7ed936c`. Status: **ACTIVE** (re-activated by PM #3, 2026-09-27, see below). Started: 2026-09-26 ~23:10. Passed its onboarding interview (it had already checked its cwd). First deliverable: the owner's pre-trip labeled SEED (a few hundred photos), then EVAL_PLAN / LIBRARY_SPEC / LABEL_SCHEMA / queries / the baseline.
 - Scope: owns curation quality + the evaluation methodology. Defines tests, compares approaches, measures, finds failure modes; coordinates implementation through the PM. Plan: see ACTIVE_WORK "Curation gate evidence" (AI-assisted ground truth, objective vs. subjective labels with confidence, a small label set, a 10% blind subset, local by default).
+- **Retrieval Round 1 — DONE (2026-09-27, committed `eacbd5f`, not yet pushed):** real per-query evaluation, 12 owner-graded queries on library 15 (pooled candidates + grid grading, redesigned mid-round after the owner found page-1's design "a needle in a haystack"). Full suite green (158). **Key finding:** OpenCLIP xlm-r B/32 clearly beats SigLIP2 base on Hebrew retrieval specifically (P@10 0.57 vs 0.33) — but OpenCLIP is POC_ONLY on licensing, so the better Hebrew performer isn't commercially clean yet. Also found: Hebrew trails English even on OpenCLIP; high result redundancy (needs a diversity/MMR re-rank); some queries worded too narrowly per the owner. Report: `evaluation/reports/r1_2026-09-27.md`.
+- **PM #3 decision (2026-09-27):** approved two low-risk follow-ups without waiting for Advisor — both reuse existing owner grades (zero new owner time) and are pure evaluation methodology within this role's own charter, not a strategic model/license call: (a) he→en query translation A/B, (b) diversity re-rank A/B. The Hebrew-vs-license tension itself (which model to actually adopt) still needs Advisor/owner review — flagged, not decided here.
 
 ### Cloud Worker #1 (cloud session titled "פרויקט ביקורת ענן"; formerly logged as "Cloud Handoff Worker #1")
 - **Category:** Cloud Workers. It is managed by the PM like any other worker.
@@ -153,6 +157,7 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - **History:**
   1. Handoff-to-Itay docs, branch `claude/happy-cori-p2nejq`. Merged by PM #1 as `cd87ca9`, DONE.
   2. I-012 desk research. Not in Git yet; the PM asked where it is.
+  3. **Dead branch found and reviewed, NOT merged (PM #3, 2026-09-27):** `claude/sweet-goldberg-iyncw4` (base `4e68307`, one commit, 2026-09-26) — a duplicate cloud attempt at the Curation & Evaluation Lead #1 onboarding, written in parallel with the local Curation Lead session that actually did the real work (round-0, M5, Retrieval Round 1 — see her entry above). Superseded before it was ever used; contains only a stale onboarding-interview draft (`project_management/handoffs/2026-09-26_curation_lead1_onboarding.md`), nothing merge-worthy. Left on GitHub, unmerged; **recommend the owner delete the remote branch** (not done here — deleting a branch isn't a PM-doc change).
 - **Current task:** I-014 Build-vs-Buy / White-Label research. Brief: `project_management/handoffs/cloud_task_build_vs_buy.md` (commit `94f43f6`).
 - **Branch/PR:** a new branch per task, never main. The PM reviews and merges.
 - **Dependencies:** none. Research only, no overlap with local workers.
@@ -169,7 +174,7 @@ The Project Manager is the operational authority and coordination hub. Cloud wor
 - Depends on: nothing (research + standalone eval script). Gates satisfied: round-0 baseline done, seed labels exist, tree clean.
 - **Delivered (2026-09-27):** licenses verified from primary sources (SigLIP2 base = Apache-2.0 confirmed; Core ML/iPhone path = third-party FluidInference conversion, Mac-only benchmarked; OpenCLIP xlm-roberta-b32 = MIT confirmed, stays POC_ONLY — confirmed LAION-5B CSAM-provenance incident, Dec 2023, this checkpoint predates the Re-LAION fix). `MODEL_REGISTRY.md` updated. Built `evaluation/poc_7a_semantic_search.py` (standalone, read-only, embeds cached to survive a crash mid-run) — its `build_model`/`embed_images`/`embed_text` are now the shared API Curation Lead #1's `evaluation/retrieval_eval.py` imports. Full run on library 15 (220 labeled photos, real result, not a dry run): at a threshold that never drops a must/special photo, junk retention falls from the round-0 baseline (50.7%/52.1%) to SigLIP2 26.8% (all)/17.6% (held-out), OpenCLIP 21.1%/5.9%. Commits: `da36904`, `65996d3`.
 - Caveats owner/Advisor should see before acting: this is a generic keep-vs-junk signal (not per-query precision@K — that's retrieval_eval.py), threshold fit and evaluated on the same sample (not a clean train/test split), n=220 from one library, CPU-only.
-- Next (not started, holding per PM #3): threshold refit on held-out only; optional third model (MobileCLIP) for iPhone speed comparison; incorporate Curation Lead's real precision@K once retrieval_eval.py's grading rounds land.
+- Next (not started, holding per PM #3): threshold refit on held-out only; optional third model (MobileCLIP) for iPhone speed comparison. **Curation Lead's real precision@K has now landed (Retrieval Round 1, 2026-09-27)** — see her entry below; it shows OpenCLIP beating SigLIP2 on Hebrew specifically, which 7a's generic keep-vs-junk metric couldn't see. 7a has no further assigned work; stays WAITING until Advisor/owner reviews both results together.
 
 ### אחראי יעילות וסשנים #1 (Efficiency & Sessions Lead) — a permanent role, not a one-off worker
 - Status: ACTIVE. Session: "אחראי יעילות וסשנים #1" (`local_de2166e2-8934-4965-bbf8-78c40489fb24`). Started 2026-09-27 ~08:57. First task: audit all active sessions (PM included) and diagnose what's eating the 5h window.
